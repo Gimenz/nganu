@@ -1,1 +1,0 @@
-const nganu = 'nganu';
