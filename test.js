@@ -11,7 +11,6 @@ function addUser(array, userId) {
     }
 }
 
-const { igApi } = require('insta-fetcher');
-const ig = new igApi(`50998513903%3AuZuwz5gmzih919%3A7`)
-
-ig.fetchHighlights('linda_darmawan03').then(res => console.log(res)).catch(e => console.log(e))
+if (!fs.existsSync('./temp')) {
+    fs.mkdirSync('./temp')
+}
