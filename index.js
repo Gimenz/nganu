@@ -23,7 +23,7 @@ global.API = config.api
 global.owner = config.owner
 global.footer = `${package.name} ~ Multi Device [BETA]`
 const { igApi } = require('insta-fetcher');
-const ig = new igApi(`${process.env.session_id}`)
+const ig = new igApi(config.session_id)
 
 /** LOCAL MODULE */
 const {
