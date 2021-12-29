@@ -14,3 +14,8 @@ function addUser(array, userId) {
 if (!fs.existsSync('./temp')) {
     fs.mkdirSync('./temp')
 }
+
+
+const hatimu = 'wong liyo';
+new RegExp('adakah aku dihatimu 🥺', 'i').test(hatimu);
+// false

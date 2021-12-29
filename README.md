@@ -7,6 +7,8 @@ simple whatsapp-bot using [baileys-md](https://github.com/adiwajshing/Baileys/tr
 
 
 ## Install
+Cara install di rdp/windows : [YouTube](https://youtu.be/VJMz_Hcakk8)
+
 ```bash
 git clone https://github.com/Gimenz/nganu.git
 npm install

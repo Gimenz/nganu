@@ -22,8 +22,8 @@ global.config = require('./src/config.json')
 global.API = config.api
 global.owner = config.owner
 global.footer = `${package.name} ~ Multi Device [BETA]`
-const { igApi } = require('insta-fetcher');
-const ig = new igApi(config.session_id)
+let { igApi } = require('insta-fetcher');
+let ig = new igApi(config.session_id)
 
 /** LOCAL MODULE */
 const {
@@ -82,7 +82,6 @@ const start = async () => {
         color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
         color(`${package.name} is now Connected...`, '#38ef7d')
     );
-    client.type
 
     client.ev.on('creds.update', () => saveState)
     client.ev.on('messages.upsert', async (msg) => {
@@ -182,7 +181,7 @@ const start = async () => {
                 client.sendMessage(from, { text: `Social Media`, footer, templateButtons: buttonsDefault }, { quoted: m })
             }
 
-            if (/https:\/\/.+\.tiktok.+/g.test(body)) {
+            if (/https:\/\/.+\.tiktok.+/g.test(body) && !m.isBot) {
                 try {
                     url = body.match(/https:\/\/.+\.tiktok.+/g)[0]
                     logEvent(url)
@@ -198,7 +197,7 @@ const start = async () => {
                 }
             }
 
-            if (/https?:\/\/(web\.|www\.|m\.)?(facebook|fb)\.(com|watch)\S+/g.test(m.text)) {
+            if (/https?:\/\/(web\.|www\.|m\.)?(facebook|fb)\.(com|watch)\S+/g.test(m.text) && !m.isBot) {
                 try {
                     url = body.match(/https?:\/\/(web\.|www\.|m\.)?(facebook|fb)\.(com|watch)\S+/g)[0]
                     logEvent(url);
@@ -212,7 +211,7 @@ const start = async () => {
                 }
             }
 
-            if (/https?:\/\/?(www|pin|id)?\.(it|pinterest\.co(m|\.[a-z]{1,2}))\S+\//g.test(body)) {
+            if (/https?:\/\/?(www|pin|id)?\.(it|pinterest\.co(m|\.[a-z]{1,2}))\S+\//g.test(body) && !m.isBot) {
                 try {
                     await typing(from)
                     url = /https?:\/\/?(www|pin|id)?\.(it|pinterest\.co(m|\.[a-z]{1,2}))\S+\//g.exec(body)[0]
@@ -227,7 +226,7 @@ const start = async () => {
                 }
             }
 
-            if (/(?:https?:\/\/)?(?:www\.)?(?:instagram\.com(?:\/\w+)?\/(p|reel|tv)\/)([\w-]+)(?:\/)?(\?.*)?$/gim.test(body)) {
+            if (/(?:https?:\/\/)?(?:www\.)?(?:instagram\.com(?:\/\w+)?\/(p|reel|tv)\/)([\w-]+)(?:\/)?(\?.*)?$/gim.test(body) && !m.isBot) {
                 try {
                     url = formatIGUrl(body);
                     logEvent(url);
@@ -257,7 +256,7 @@ const start = async () => {
                 }
             }
 
-            if (/https:\/\/(www\.)?instagram\.com\/stories\/.+/g.test(body)) {
+            if (/https:\/\/(www\.)?instagram\.com\/stories\/.+/g.test(body) && !m.isBot) {
                 try {
                     await typing(from)
                     await waiting(from, m)
@@ -285,7 +284,7 @@ const start = async () => {
                 }
             }
 
-            if (/https:\/\/www\.instagram\.com\/s\/.+story_media_id=([\w-]+)/g.test(body)) {
+            if (/https:\/\/www\.instagram\.com\/s\/.+story_media_id=([\w-]+)/g.test(body) && !m.isBot) {
                 const link_highlight = /https:\/\/www\.instagram\.com\/s\/(.*?)\?story_media_id=([\w-]+)/g.exec(body)[0]
                 try {
                     await typing(from)
