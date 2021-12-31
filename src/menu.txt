@@ -6,5 +6,10 @@
 *>* TikTok
 *>* Instagram <stories | highlights | post | reel | tv>
 *>* Pinterest <photo | video>
+*>* Twitter <photo | video> [support multiple media]
+
+*CMD*
+*>* prefix sticker <reply/send media>  "image" | video"
+*>* prefix toimg <reply a sticker>
 
 *Note :* Jika menemukan bug, atau terdapat fitur bot yang error. jangan sungkan lapor ke owner agar segera diperbaiki.

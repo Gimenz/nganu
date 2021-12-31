@@ -88,7 +88,7 @@ async function getBuffer(url, optionsOverride = {}) {
 
 /**
  * Format bytes as human-readable text.
- * copied from -> https://stackoverflow.com/a/14919494s
+ * copied from -> https://stackoverflow.com/a/14919494
  * @param bytes Number of bytes.
  * @param si True to use metric (SI) units, aka powers of 1000. False to use
  *           binary (IEC), aka powers of 1024.

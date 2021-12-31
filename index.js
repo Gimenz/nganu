@@ -15,10 +15,12 @@ const {
 const pino = require('pino');
 const CFonts = require('cfonts');
 const gradient = require('gradient-string');
+const { Sticker, createSticker, StickerTypes, extractMetadata } = require('wa-sticker-formatter')
 let package = require('./package.json');
 let session = `./session.json`;
 const { state, saveState } = useSingleFileAuthState(session);
 global.config = require('./src/config.json')
+global.quot = config.quot
 global.API = config.api
 global.owner = config.owner
 global.footer = `${package.name} ~ Multi Device [BETA]`
@@ -40,6 +42,9 @@ const { Serialize } = require('./lib/simple');
 const { tiktokDL } = require('./lib/tiktok');
 const { download, parseMention } = require('./lib/function');
 
+/** DB */
+let chatsJid = JSON.parse(fs.readFileSync('./db/chatsJid.json', 'utf-8'))
+
 const start = async () => {
     CFonts.say(`${package.name}`, {
         font: 'shade',
@@ -54,11 +59,6 @@ const start = async () => {
         gradient: ['#DCE35B', '#45B649'],
         transitionGradient: true,
     });
-    console.log(
-        color('[SYS]', '#009FFF'),
-        color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
-        color(`${package.name} is Authenticating...`, '#f64f59')
-    );
 
     const client = makeWASocket({
         printQRInTerminal: true,
@@ -69,21 +69,36 @@ const start = async () => {
 
     client.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
-        if (connection === 'close') {
-            console.log('connection closed, try to restart');
+        if (connection == 'connecting') {
+            console.log(
+                color('[SYS]', '#009FFF'),
+                color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
+                color(`${package.name} is Authenticating...`, '#f12711')
+            );
+        } else if (connection === 'close') {
+            console.log(
+                color('[SYS]', '#009FFF'),
+                color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
+                color(`Connection Closed, trying to reconnect`, '#f64f59')
+            );
             lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut
                 ? start()
-                : console.log('WA Web Logged Out...');
+                : console.log(
+                    color('[SYS]', '#009FFF'),
+                    color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
+                    color(`WA Web Logged out`, '#f64f59')
+                );;
+        } else if (connection == 'open') {
+            console.log(
+                color('[SYS]', '#009FFF'),
+                color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
+                color(`${package.name} is now Connected...`, '#38ef7d')
+            );
         }
     });
 
-    console.log(
-        color('[SYS]', '#009FFF'),
-        color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
-        color(`${package.name} is now Connected...`, '#38ef7d')
-    );
-
     client.ev.on('creds.update', () => saveState)
+
     client.ev.on('messages.upsert', async (msg) => {
         try {
             if (!msg.messages) return
@@ -138,6 +153,14 @@ const start = async () => {
                 }
             }
 
+            if (isCmd) {
+                // store user jid to json file
+                if (!chatsJid.some((x => x == sender))) {
+                    chatsJid.push(sender)
+                    fs.writeFileSync('./db/chatsJid.json', JSON.stringify(chatsJid), 'utf-8')
+                }
+            }
+
             let tipe = bgColor(color(type, 'black'), '#FAFFD1')
             if (!isCmd && !isGroupMsg) {
                 console.log('[MSG]', color(moment(t * 1000).format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), msgs(m.text), `~> ${(tipe)} from`, color(pushname, '#38ef7d'))
@@ -152,7 +175,7 @@ const start = async () => {
                 console.log(color('[CMD]'), color(moment(t * 1000).format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`${cmd} [${args.length}]`), color(`${msgs(body)}`, 'cyan'), '~> from', gradient.teen(pushname), 'in', gradient.fruit(formattedTitle))
             }
 
-            if (config.autoReads) await client.sendReadReceipt(from, sender, [m.key.id])
+            await client.sendReadReceipt(from, sender, [m.key.id])
 
             if (cmd == 'help' || cmd == 'menu') {
                 await typing(from)
@@ -164,8 +187,8 @@ const start = async () => {
 
                 let text = `Hi *${pushname}* 🤗\n\n*'${package.name}'* ~> coded by ${package.author}\n\n` +
                     `⌚️ : ${moment().format('HH:mm:ss')}\n\n` +
-                    `${fs.readFileSync('./src/menu.txt', 'utf-8').replace(/prefix /, prefix)}`
-                client.sendMessage(from, { text, footer, templateButtons: buttonsDefault, headerType: 3 }, { quoted: m })
+                    `${fs.readFileSync('./src/menu.txt', 'utf-8').replace(/prefix /g, prefix)}`
+                client.sendMessage(from, { text, footer, templateButtons: buttonsDefault }, { quoted: m })
             }
 
             if (/owner/.test(cmd)) {
@@ -303,6 +326,65 @@ const start = async () => {
                 } catch (error) {
                     console.log(error);
                     reply('an error occurred')
+                }
+            }
+
+            if (/https?:\/\/twitter.com\/[0-9-a-zA-Z_]{1,20}\/status\/[0-9]*/g.test(body) && !m.isBot) {
+                try {
+                    let url = body.match(/https?:\/\/twitter.com\/[0-9-a-zA-Z_]{1,20}\/status\/[0-9]*/g)[0]
+                    logEvent(url);
+                    await typing(from)
+                    let { result: data } = await fetchAPI('masgi', '/twitter/download.php?url=' + url)
+                    await waiting(from, m)
+                    await reply(`Media from *${data.name} [@${data.username}]* ${quot}${data.full_text}${quot}\n\nTotal ${data.media.mediaUrl.length} ${data.media.mediaType}` || '')
+                    for (i of data.media.mediaUrl) {
+                        await sendFileFromUrl(from, i, '', m)
+                    }
+                } catch (error) {
+                    console.log(error);
+                    await reply('an error occurred')
+                }
+            }
+
+            // CMD 
+            if (/^s(|ti(c|)ker)$/i.test(cmd)) {
+                let packName = args.length >= 1 ? arg.split('|')[0] : `${package.name}`
+                let stickerAuthor = args.length >= 1 ? arg.split('|')[1] : `${package.author}`
+                let categories = config.stickerCategories[arg.split('|')[2]] || config.stickerCategories['love']
+                try {
+                    if (isMedia && !m.message.videoMessage || isQuotedImage) {
+                        const message = isQuotedImage ? m.quoted : m.message.imageMessage
+                        const buff = await client.downloadMediaMessage(message)
+                        const data = new Sticker(buff, { pack: packName, author: stickerAuthor, categories, type: StickerTypes.FULL, quality: 50, id: 'nganu' })
+                        await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                    } else if (m.message.videoMessage || isQuotedVideo) {
+                        if (isQuotedVideo ? m.quoted.seconds > 15 : m.message.videoMessage.seconds > 15) return reply('too long duration, max 15 seconds')
+                        const message = isQuotedVideo ? m.quoted : m.message.videoMessage
+                        const buff = await client.downloadMediaMessage(message)
+                        const data = new Sticker(buff, { pack: packName, author: stickerAuthor, categories, type: StickerTypes.FULL, quality: 50, id: 'nganu' })
+                        await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                    } else {
+                        reply('send/reply media. media is video or image')
+                    }
+                } catch (error) {
+                    reply('an error occurred');
+                    console.log(error);
+                }
+            }
+
+            if (/toimg/i.test(cmd)) {
+                if (isQuotedSticker) {
+                    try {
+                        await client.presenceSubscribe(from)
+                        await client.sendPresenceUpdate('composing', from)
+                        const media = await downloadMediaMessage(m.quoted)
+                        await client.sendMessage(from, { image: media, jpegThumbnail: media }, { quoted: m })
+                    } catch (error) {
+                        console.log(error);
+                        reply('an error occurred')
+                    }
+                } else {
+                    await reply('reply a sticker')
                 }
             }
 
