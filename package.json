@@ -38,6 +38,6 @@
     "pino": "^7.6.1",
     "qrcode": "^1.5.0",
     "socket.io": "^4.4.0",
-    "wa-sticker-formatter": "github:AlenSaito1/wa-sticker-formatter"
+    "wa-sticker-formatter": "^4.2.0"
   }
 }
