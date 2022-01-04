@@ -46,10 +46,6 @@ socket.on('ram-usage', ({ ram, cpu, username, osInfo, runtime, uptime, storage }
     labelCpu.innerHTML = `<span>CPU ${cpu} % </span>`
     // Set cpu bar
     $('.innerBar-cpu').animate({ width: `${cpu}%` }, 500)
-    // Set storage label
-    storage.innerHTML = `<span>CPU ${storage} % </span>`
-    // Set storage bar
-    $('.innerBar-storage').animate({ width: `${storage}%` }, 500)
     // Check
     if (cpu > 90) {
         notify(cpu)

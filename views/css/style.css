@@ -63,11 +63,6 @@ label {
    height: 20px;
    width: 0%;
 }
-.innerBar-storage {
-  background: linear-gradient(to right, #3f72ff 0%, #ff3aff 50%, #e54048 100%);
-  height: 20px;
-  width: 0%;
-}
 .outerContainer-ram,
 .outerContainer-cpu {
    width: 250px;
@@ -75,13 +70,6 @@ label {
    border-radius: 5px;
    overflow: hidden;
    background: lightgray;
-}
-.outerContainer-storage {
-  width: 250px;
-  height: 20px;
-  border-radius: 5px;
-  overflow: hidden;
-  background: lightgray;
 }
 
 footer {

@@ -37,12 +37,10 @@ const webLog = async (client) => {
             const runtime = Math.round(process.uptime()).toFixed(0)
             /** Computer system uptime  */
             const uptime = Math.round(os.uptime()).toFixed(0)
-            // Storage
-            const storage = Math.round((await osUtils.drive.info('/')).totalGb) - Math.round((await osUtils.drive.info('/')).freeGb)
 
 
             // CPU USAGE PERCENTAGE
-            cpu.usage().then((cpu) => socket.emit('ram-usage', { ram, cpu, username, osInfo, runtime, uptime, storage, logger }))
+            cpu.usage().then((cpu) => socket.emit('ram-usage', { ram, cpu, username, osInfo, runtime, uptime, logger }))
         }, 1000)
     })
 
