@@ -1,3 +1,14 @@
+/**
+ * Author  : Gimenz
+ * Name    : nganu
+ * Version : 1.0
+ * Update  : 04 Januari 2022
+ * 
+ * If you are a reliable programmer or the best developer, please don't change anything.
+ * If you want to be appreciated by others, then don't change anything in this script.
+ * Please respect me for making this tool from the beginning.
+ */
+
 const {
     default: makeWASocket,
     generateThumbnail,
@@ -26,6 +37,8 @@ global.owner = config.owner
 global.footer = `${package.name} ~ Multi Device [BETA]`
 let { igApi } = require('insta-fetcher');
 let ig = new igApi(config.session_id)
+const yargs = require('yargs/yargs')
+global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse())
 
 /** LOCAL MODULE */
 const {
@@ -41,9 +54,18 @@ const {
 const { Serialize } = require('./lib/simple');
 const { tiktokDL } = require('./lib/tiktok');
 const { download, parseMention } = require('./lib/function');
+const { logger } = require('./server');
 
 /** DB */
 let chatsJid = JSON.parse(fs.readFileSync('./db/chatsJid.json', 'utf-8'))
+const client = makeWASocket({
+    printQRInTerminal: true,
+    logger: pino({ level: 'silent' }),
+    auth: state,
+    browser: ['nganu', 'Safari', '3.0'],
+});
+
+if (opts['server']) require('./server').webLog(client)
 
 const start = async () => {
     CFonts.say(`${package.name}`, {
@@ -60,12 +82,6 @@ const start = async () => {
         transitionGradient: true,
     });
 
-    const client = makeWASocket({
-        printQRInTerminal: true,
-        logger: pino({ level: 'silent' }),
-        auth: state,
-        browser: ['nganu', 'Safari', '3.0'],
-    });
 
     client.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
@@ -105,21 +121,22 @@ const start = async () => {
             const m = msg.messages[0]
             if (m.key.fromMe) return
             const from = m.key.remoteJid;
-            let type = Object.keys(m.message)[0];
+            let type = client.msgType = Object.keys(m.message)[0];
             Serialize(client, m)
             const content = JSON.stringify(JSON.parse(JSON.stringify(msg)).messages[0].message)
             let t = m.messageTimestamp
-            const body = (type === 'conversation' && m.message.conversation) ? m.message.conversation : (type == 'imageMessage') && m.message.imageMessage.caption ? m.message.imageMessage.caption : (type == 'documentMessage') && m.message.documentMessage.caption ? m.message.documentMessage.caption : (type == 'videoMessage') && m.message.videoMessage.caption ? m.message.videoMessage.caption : (type == 'extendedTextMessage') && m.message.extendedTextMessage.text ? m.message.extendedTextMessage.text : (type == 'buttonsResponseMessage' && m.message.buttonsResponseMessage.selectedButtonId) ? m.message.buttonsResponseMessage.selectedButtonId : (type == 'templateButtonReplyMessage') && m.message.templateButtonReplyMessage.selectedId ? m.message.templateButtonReplyMessage.selectedId : ""
+            client.time = moment.tz('Asia/Jakarta').format('DD/MM HH:mm:ss')
+            let body = client.body = (type === 'conversation' && m.message.conversation) ? m.message.conversation : (type == 'imageMessage') && m.message.imageMessage.caption ? m.message.imageMessage.caption : (type == 'documentMessage') && m.message.documentMessage.caption ? m.message.documentMessage.caption : (type == 'videoMessage') && m.message.videoMessage.caption ? m.message.videoMessage.caption : (type == 'extendedTextMessage') && m.message.extendedTextMessage.text ? m.message.extendedTextMessage.text : (type == 'buttonsResponseMessage' && m.message.buttonsResponseMessage.selectedButtonId) ? m.message.buttonsResponseMessage.selectedButtonId : (type == 'templateButtonReplyMessage') && m.message.templateButtonReplyMessage.selectedId ? m.message.templateButtonReplyMessage.selectedId : ""
 
-            const isGroupMsg = m.key.remoteJid.endsWith('@g.us')
+            let isGroupMsg = client.isGroupMsg = m.key.remoteJid.endsWith('@g.us')
             const isMedia = (type === 'imageMessage' || type === 'videoMessage')
             const isQuotedImage = type === 'extendedTextMessage' && content.includes('imageMessage')
             const isQuotedVideo = type === 'extendedTextMessage' && content.includes('videoMessage')
             const isQuotedAudio = type === 'extendedTextMessage' && content.includes('audioMessage')
             const isQuotedSticker = type === 'extendedTextMessage' && content.includes('stickerMessage')
-            const sender = m.sender
+            let sender = m.sender
             const isOwner = config.owner.includes(sender)
-            let pushname = m.pushName
+            let pushname = client.pushname = m.pushName
             const botNumber = client.user.id
             const groupId = isGroupMsg ? from : ''
             const groupMetadata = isGroupMsg ? await client.groupMetadata(groupId) : ''
@@ -128,13 +145,13 @@ const start = async () => {
             for (let i of groupMembers) {
                 i.isAdmin ? groupAdmins.push(i.jid) : ''
             }
-            const formattedTitle = isGroupMsg ? groupMetadata.subject : ''
-            global.prefix = /^[./~!#%^&+=\-,;:()]/.test(body) ? body.match(/^[./~!#%^&+=\-,;:()]/gi) : '#'
+            let formattedTitle = client.groupName = isGroupMsg ? groupMetadata.subject : ''
+            global.prefix = client.prefix = /^[./~!#%^&+=\-,;:()]/.test(body) ? body.match(/^[./~!#%^&+=\-,;:()]/gi) : '#'
 
             const arg = body.substring(body.indexOf(' ') + 1)
-            const args = body.trim().split(/ +/).slice(1);
-            const isCmd = body.startsWith(global.prefix);
-            const cmd = isCmd ? body.slice(1).trim().split(/ +/).shift().toLocaleLowerCase() : null
+            let args = client.args = body.trim().split(/ +/).slice(1);
+            let isCmd = client.isCmd = body.startsWith(global.prefix);
+            let cmd = client.cmd = isCmd ? body.slice(1).trim().split(/ +/).shift().toLocaleLowerCase() : null
             let url = args.length !== 0 ? args[0] : ''
 
             const typing = async (jid) => await client.sendPresenceUpdate('composing', jid)
@@ -160,6 +177,8 @@ const start = async () => {
                     fs.writeFileSync('./db/chatsJid.json', JSON.stringify(chatsJid), 'utf-8')
                 }
             }
+
+            logger(client)
 
             let tipe = bgColor(color(type, 'black'), '#FAFFD1')
             if (!isCmd && !isGroupMsg) {
