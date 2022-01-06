@@ -31,6 +31,7 @@
     "ejs": "^3.1.6",
     "express": "^4.17.2",
     "file-type": "^16.5.3",
+    "fluent-ffmpeg": "^2.1.2",
     "gradient-string": "^2.0.0",
     "insta-fetcher": "^1.2.94",
     "mime-types": "^2.1.34",
@@ -39,6 +40,7 @@
     "node-webpmux": "^3.1.1",
     "pino": "^7.6.1",
     "qrcode": "^1.5.0",
+    "sharp": "^0.28.3",
     "socket.io": "^4.4.0"
   }
 }

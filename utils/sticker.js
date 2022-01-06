@@ -5,7 +5,6 @@ const fs = require('fs');
 const { Image } = require('node-webpmux');
 const Exif = require('./exif');
 const { getRandom } = require('../lib/function');
-const { isUrl } = require('../../wa-md/utils/function');
 const { getBuffer } = require('./function');
 
 let type = {
