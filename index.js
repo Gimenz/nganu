@@ -26,7 +26,7 @@ const {
 const pino = require('pino');
 const CFonts = require('cfonts');
 const gradient = require('gradient-string');
-const { Sticker, createSticker, StickerTypes, extractMetadata } = require('wa-sticker-formatter')
+const s = require('./utils/sticker')
 let package = require('./package.json');
 let session = `./session.json`;
 const { state, saveState } = useSingleFileAuthState(session);
@@ -374,13 +374,13 @@ const start = async () => {
                     if (isMedia && !m.message.videoMessage || isQuotedImage) {
                         const message = isQuotedImage ? m.quoted : m.message.imageMessage
                         const buff = await client.downloadMediaMessage(message)
-                        const data = new Sticker(buff, { pack: packName, author: stickerAuthor, categories, type: StickerTypes.FULL, quality: 50, id: 'nganu' })
+                        const data = new s(buff, 'circle', stickerAuthor, packName, 'nganu', categories)
                         await client.sendMessage(from, await data.toMessage(), { quoted: m })
                     } else if (m.message.videoMessage || isQuotedVideo) {
                         if (isQuotedVideo ? m.quoted.seconds > 15 : m.message.videoMessage.seconds > 15) return reply('too long duration, max 15 seconds')
                         const message = isQuotedVideo ? m.quoted : m.message.videoMessage
                         const buff = await client.downloadMediaMessage(message)
-                        const data = new Sticker(buff, { pack: packName, author: stickerAuthor, categories, type: StickerTypes.FULL, quality: 50, id: 'nganu' })
+                        const data = new s(buff, '', stickerAuthor, packName, 'nganu', categories)
                         await client.sendMessage(from, await data.toMessage(), { quoted: m })
                     } else {
                         reply('send/reply media. media is video or image')
