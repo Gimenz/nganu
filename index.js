@@ -118,6 +118,8 @@ const start = async () => {
                 color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
                 color(`${package.name} is now Connected...`, '#38ef7d')
             );
+        } else {
+            await start()
         }
     });
 
