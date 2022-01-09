@@ -68,16 +68,8 @@ if (!fs.existsSync('./db/chatsJid.json')) {
     fs.writeFileSync('./db/chatsJid.json', JSON.stringify([]), 'utf-8')
 }
 let chatsJid = JSON.parse(fs.readFileSync('./db/chatsJid.json', 'utf-8'))
-const client = makeWASocket({
-    printQRInTerminal: true,
-    logger: pino({ level: 'silent' }),
-    auth: state,
-    browser: Browsers.macOS('Safari')
-    //browser: ['masgi', 'Safari', '3.0']
-});
-global.client
 
-if (opts['server']) require('./server').srv(client)
+if (opts['server']) require('./server').srv(global.client)
 
 const start = async () => {
     CFonts.say(`${package.name}`, {
@@ -93,7 +85,14 @@ const start = async () => {
         gradient: ['#DCE35B', '#45B649'],
         transitionGradient: true,
     });
-
+    let client = makeWASocket({
+        printQRInTerminal: true,
+        logger: pino({ level: 'silent' }),
+        auth: state,
+        browser: Browsers.macOS('Safari')
+        //browser: ['masgi', 'Safari', '3.0']
+    });
+    global.client = client
 
     client.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
@@ -106,7 +105,7 @@ const start = async () => {
         } else if (connection === 'close') {
             console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`Connection Closed, trying to reconnect`, '#f64f59'));
             lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut
-                ? await start()
+                ? start()
                 : console.log(
                     color('[SYS]', '#009FFF'),
                     color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
@@ -119,7 +118,11 @@ const start = async () => {
                 color(`${package.name} is now Connected...`, '#38ef7d')
             );
         } else {
-            await start()
+            console.log(
+                color('[SYS]', '#009FFF'),
+                color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
+                color(`Connection closed`, '#f12711')
+            );
         }
     });
 
