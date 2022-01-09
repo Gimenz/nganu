@@ -3,6 +3,9 @@
   "version": "1.2.2",
   "description": "simple Multi Device [MD] whatsapp-bot ",
   "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"

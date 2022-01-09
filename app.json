@@ -1,0 +1,7 @@
+{
+    "name": "nganu",
+    "description": "a simple whatsapp bot social media downloader",
+    "repository": "https://github.com/Gimenz/nganu",
+    "logo": "https://node-js-sample.herokuapp.com/node.png",
+    "keywords": ["bot", "whatsapp-bot", "bot-wa"]
+  }
