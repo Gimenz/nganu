@@ -95,7 +95,7 @@ const start = async () => {
     });
 
 
-    client.ev.on('connection.update', (update) => {
+    client.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'connecting') {
             console.log(
@@ -104,13 +104,9 @@ const start = async () => {
                 color(`${package.name} is Authenticating...`, '#f12711')
             );
         } else if (connection === 'close') {
-            console.log(
-                color('[SYS]', '#009FFF'),
-                color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
-                color(`Connection Closed, trying to reconnect`, '#f64f59')
-            );
+            console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`Connection Closed, trying to reconnect`, '#f64f59'));
             lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut
-                ? start()
+                ? await start()
                 : console.log(
                     color('[SYS]', '#009FFF'),
                     color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
