@@ -12,6 +12,7 @@
 const { S_WHATSAPP_NET } = require('@adiwajshing/baileys-md');
 const chalk = require('chalk');
 global.moment = require('moment-timezone');
+const mime = require('mime-types');
 moment.tz.setDefault('Asia/Jakarta').locale('id');
 global.axios = require('axios').default;
 global.config = require('../src/config.json')
