@@ -1,47 +1,61 @@
+/**
+ * Author  : Gimenz
+ * Name    : nganu
+ * Version : 1.0
+ * Update  : 09 Januari 2022
+ * 
+ * If you are a reliable programmer or the best developer, please don't change anything.
+ * If you want to be appreciated by others, then don't change anything in this script.
+ * Please respect me for making this tool from the beginning.
+ */
+
 let express = require('express')
 const http = require('http')
 const app = express()
 const httpServer = http.createServer(app)
-const osUtils = require('node-os-utils')
-const os = require('os')
-const { color } = require('./utils/function')
-const io = require('socket.io')(httpServer)
+const { color, humanFileSize } = require('./utils/index')
+const si = require('systeminformation')
 
-const webLog = async (client) => {
-    // View Engine and static public folder
-    app.set('view engine', 'ejs')
-    app.use(express.static('./views'))
-
-    // Root Route
-    app.get('/', (req, res) => {
-        res.render('index.ejs')
+const srv = async (client) => {
+    app.set('json spaces', 2);
+    app.use(express.json());
+    app.get('/', async (req, res) => {
+        try {
+            let ram = await si.mem()
+            let cpu = await si.cpuCurrentSpeed()
+            let disk = await si.fsSize()
+            let up = si.time()
+            let json = {
+                server_time: new Date(up.current).toLocaleString('jv'),
+                uptime: times(up.uptime),
+                memory: humanFileSize(ram.free, true, 1) + ' free of ' + humanFileSize(ram.total, true, 1),
+                memory_used: humanFileSize(ram.used, true, 1),
+                cpu: cpu.avg + ' Ghz',
+                disk: humanFileSize(disk[0].available, true, 1) + ' free of ' + humanFileSize(disk[0].size, true, 1),
+            }
+            res.status(200).json(json)
+        } catch (error) {
+            res.status(503).send(error)
+        }
     })
 
-    // CPU USAGE
-    const cpu = osUtils.cpu
-
-    // USER and OS
-    const username = os.userInfo().username
-    const osInfo = os.type()
-    io.sockets.setMaxListeners(0);
-    // SOCKET IO
-    io.on('connection', (socket) => {
-        console.log(color(`[INFO] ${socket.id} Server socket connected`, 'green'))
-        // USE SET INTERVAL TO CHECK RAM USAGE EVERY SECOND
-        setInterval(async () => {
-            // RAM USED tot - free
-            const ramUsed = Math.round(os.totalmem()) - Math.round(os.freemem())
-            // RAM percentage
-            const ram = (ramUsed * 100 / Math.round(os.totalmem())).toFixed(0)
-            /** Bot run time */
-            const runtime = Math.round(process.uptime()).toFixed(0)
-            /** Computer system uptime  */
-            const uptime = Math.round(os.uptime()).toFixed(0)
-
-
-            // CPU USAGE PERCENTAGE
-            cpu.usage().then((cpu) => socket.emit('ram-usage', { ram, cpu, username, osInfo, runtime, uptime, logger }))
-        }, 1000)
+    app.get('/send', async (req, res, next) => {
+        const { id, text } = req.query;
+        if (!id) return res.status(403).json({
+            status: false,
+            code: 403,
+            creator: '@gimenz.id',
+            result: 'jid diperlukan'
+        })
+        if (!text) return res.status(403).json({
+            status: false,
+            code: 403,
+            creator: '@gimenz.id',
+            result: 'text diperlukan'
+        })
+        const data = await client.sendMessage(id, { text })
+        res.status(200).jsonp(data)
+        console.log(color(`[SEND] send message to ${id}`, 'green') + color(`${PORT}`, 'yellow'))
     })
 
     // Run the server
@@ -51,24 +65,14 @@ const webLog = async (client) => {
     })
 }
 
-const logger = (client) => {
-    let loging
-    if (!client.isGroupMsg && client.isCmd) loging = `# <span style="color:#FFA500;font-weight:bold">${client.time}</span> <span style="background-color:#00FA9A;">${client.prefix}${client.cmd}</span> [${client.args.join(' ')}] from ${client.pushname}`
-    if (!client.isGroupMsg && !client.isCmd) loging = `# <span style="color:#FFA500;font-weight:bold">${client.time}</span>  <span style="background-color:#7FFFD4;">${client.msgType}</span> - ${cut(client.body)} from ${client.pushname}`
-    if (client.isCmd && client.isGroupMsg) loging = `# <span style="color:#FFA500;font-weight:bold">${client.time}</span>  <span style="background-color:#00FA9A;">${client.prefix}${client.cmd}</span> [${client.args.join(' ')}] from ${client.pushname} in [ ${client.groupName} ]`
-    if (!client.isCmd && client.isGroupMsg) loging = `# <span style="color:#FFA500;font-weight:bold">${client.time}</span>  <span style="background-color:#7FFFD4;">${client.msgType}</span> - ${cut(client.body)} from ${client.pushname} in Group [ ${client.groupName} ]`
-    io.emit('log', { loging })
+function times(second) {
+    days = Math.floor((second / 60) / 60 / 24)
+    hours = Math.floor((second / 60) / 60)
+    minute = Math.floor(second / 60)
+    sec = Math.floor(second)
+    return days + ' days, ' + hours + ' hours, ' + minute + ' minutes, ' + sec + ' seconds'
 }
 
-function cut(message) {
-    if (message.length >= 10) {
-        return `${message.substr(0, 100)}`;
-    } else {
-        return `${message}`;
-    }
-};
-
 module.exports = {
-    webLog,
-    logger
+    srv,
 }

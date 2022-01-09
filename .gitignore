@@ -1,4 +1,8 @@
-
+view
 node_modules
 package-lock.json
+jajal_ffmpeg.js
+mask.png
+my-session.json
+srv.js
 test.js

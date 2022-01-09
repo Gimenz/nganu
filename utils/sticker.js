@@ -1,45 +1,62 @@
+/**
+ * Author  : Gimenz
+ * Name    : nganu
+ * Version : 1.0
+ * Update  : 09 Januari 2022
+ * 
+ * If you are a reliable programmer or the best developer, please don't change anything.
+ * If you want to be appreciated by others, then don't change anything in this script.
+ * Please respect me for making this tool from the beginning.
+ */
+
 const { fromBuffer } = require('file-type');
 const sharp = require('sharp');
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 const { Image } = require('node-webpmux');
-const Exif = require('./exif');
-const { getRandom } = require('../lib/function');
-const { getBuffer } = require('./function');
+const { Exif } = require('./exif');
+const { randomBytes } = require('crypto');
+const { isUrl, getBuffer } = require('./index');
+//ffmpeg.setFfmpegPath("C:/ffmpeg/bin/ffmpeg.exe");
 
-let type = {
+let cropType = {
     'rounded': new Buffer.from('<svg><rect x="0" y="0" width="450" height="450" rx="50" ry="50"/></svg>'),
     'circle': new Buffer.from('<svg height="485" width="485"><circle cx="242.5" cy="242.5" r="242.5" fill="#3a4458"/></svg>'),
 }
-
+// some part of this code is copied from:  https://github.com/AlenSaito1/wa-sticker-formatter/ <- awesome library
 class Sticker {
+
     /**
-     * Build an webp sticker with exif metadata
-     * @param {Buffer} data Media buffer 
-     * @param {string} crop crop style, can be circle | rounded 
-     * @param {string} author sticker author
-     * @param {string} packname sticker packname
-     * @param {string} packId sticker pack id
-     * @param {string} categories sticker emoji categories see ./utils/exif.js
+     * let set the sticker metadata
+     * @typedef {Object} IStickerMetadata
+     * @property {string} packname sticker pack name
+     * @property {string} author sticker author
+     * @property {string} packId sticker pack id
+     * @property {string} categories sticker emoji categories
      */
-    constructor(data, crop, author, packname, packId, categories) {
+
+    /**
+     * Build an WebP WAsticker with exif metadata
+     * @param {string|Buffer} data File path, url or Buffer of the image/video
+     * @param {IStickerMetadata} metadata let set the sticker metadata
+     * @param {string} crop crop style [just for image], can be circle | rounded
+     */
+    constructor(data, metadata, crop) {
         this.data = data
-        this.crop = crop
-        this.author = author ?? ''
-        this.packname = packname ?? ''
-        this.packId = packId ?? ''
-        this.categories = categories ?? ''
+        this.packname = metadata.packname
+        this.author = metadata.author
+        this.packId = metadata.packId
+        this.categories = metadata.categories
+        this.crop = crop ?? undefined
     }
 
     /**
      * process image 
-     * @param {string|Buffer} input buffer
-     * @param {string} crop crop image, rounded | circle. default is set to normal(contain)
-     * @returns {Promise<Buffer>} webp ArrayBuffer
+     * @returns {Promise<Buffer>} webp Buffer
      */
-    processImage = () => {
+    processImage = (input) => {
         return new Promise((resolve, reject) => {
-            sharp(this.data)
+            sharp(input)
                 .toFormat('webp')
                 .resize(512, 512, {
                     fit: 'contain',
@@ -53,15 +70,15 @@ class Sticker {
 
     /**
      * crop image 
-     * @returns {Promise<Buffer>} webp buffer
+     * @returns {Promise<Buffer>} webp Buffer
      */
-    cropImage = () => {
+    cropImage = (input) => {
         return new Promise((resolve, reject) => {
-            sharp(this.data)
+            sharp(input)
                 .toFormat('webp')
                 .resize(512, 512)
                 .composite([{
-                    input: type[this.crop],
+                    input: cropType[this.crop],
                     blend: 'dest-in',
                     cutout: true
                 }])
@@ -74,14 +91,14 @@ class Sticker {
 
     /**
      * convert video to webp WASticker format
-     * @param {Buffer} data Buffer
+     * @param {Buffer} data video to be converted
      * @returns {Promise<Buffer} webp Buffer
      */
-    processAnimated = async () => {
+    processAnimated = async (data) => {
         try {
-            const input = `./temp/video_${getRandom('mp4')}`
-            const output = `./temp/${Math.random().toString(36)}.webp`
-            fs.writeFileSync(input, this.data.toString('binary'), 'binary')
+            const input = `./temp/video_${randomBytes(3).toString('hex')}.mp4`
+            const output = `./temp/${randomBytes(3).toString('hex')}.webp`
+            fs.writeFileSync(input, data.toString('binary'), 'binary')
             const file = await new Promise((resolve) => {
                 ffmpeg(input)
                     .inputOptions(['-y', '-t', '20'])
@@ -99,6 +116,53 @@ class Sticker {
         }
     }
 
+    /**
+     * mboh radong
+     * @returns {Promise<Buffer} webp Buffer
+     */
+    cropVideo = async (data) => {
+        try {
+            const input = `./temp/video_${randomBytes(3).toString('hex')}.mp4`
+            const output = `./temp/${randomBytes(3).toString('hex')}.webp`
+            fs.writeFileSync(input, data.toString('binary'), 'binary')
+            const file = await new Promise((resolve) => {
+                ffmpeg(input)
+                    .inputOptions(['-y', '-t', '20'])
+                    .outputOptions([
+                        '-vcodec',
+                        'libwebp',
+                        '-vf',
+                        // eslint-disable-next-line no-useless-escape
+                        `crop=w='min(min(iw\,ih)\,500)':h='min(min(iw\,ih)\,500)',scale=500:500,setsar=1,fps=15`,
+                        '-loop',
+                        '0',
+                        '-preset',
+                        'default',
+                        '-an',
+                        '-vsync',
+                        '0',
+                        '-s',
+                        '512:512'
+                    ])
+                    .format('webp')
+                    .save(output)
+                    .on('end', () => resolve(output))
+            })
+            const buffer = fs.readFileSync(file);
+            [input, output].forEach((file) => fs.unlinkSync(file))
+            return buffer
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    _parse = async () => {
+        return Buffer.isBuffer(this.data)
+            ? this.data
+            : isUrl(this.data)
+                ? (await getBuffer(this.data)).buffer
+                : this.data
+    }
 
     /**
      * add metadata to webp buffer
@@ -106,16 +170,16 @@ class Sticker {
      * @returns {Promise<Buffer>}
      */
     addMetadata = async (input) => {
-        let image = input || this.data
-        const exif = new Exif().set(this.packname, this.author, this.packId, this.categories);
+        const data = input || this.data
+        const exif = new Exif({ packname: this.packname, author: this.author, packId: this.packId, categories: this.categories }).create();
         const img = new Image()
-        await img.load(image)
+        await img.load(data)
         img.exif = exif
         return await img.save(null)
     }
 
-    _getMimeType = async () => {
-        const type = await fromBuffer(this.data)
+    _getMimeType = async (input) => {
+        const type = await fromBuffer(input)
         if (!type) {
             if (typeof this.data === 'string') return 'image/svg+xml'
             throw new Error('Invalid file type')
@@ -124,19 +188,18 @@ class Sticker {
     }
 
     /**
-     * 
-     * @param {Buffer} data buffer
-     * @param {string} crop if is image, can resize with rounded | circle  
-     * @returns {Promise<Buffer>}
+     *   
+     * @returns {Promise<Buffer>} webp Buffer WASticker
      */
     build = async () => {
-        const mime = await this._getMimeType(this.data);
+        const data = await this._parse()
+        const mime = await this._getMimeType(data);
         const isVideo = mime.startsWith('video')
         const media = isVideo
-            ? await this.processAnimated(this.data)
-            : typeof this.crop !== undefined
-                ? await this.cropImage()
-                : await this.processImage()
+            ? await this.processAnimated(data)
+            : this.crop !== undefined
+                ? await this.cropImage(data)
+                : await this.processImage(data)
         return await this.addMetadata(media)
     }
 
@@ -144,16 +207,36 @@ class Sticker {
      * Get Baileys-MD message object format
      * @returns {Promise<{ sticker: Buffer }>}
      * @example
-     * const media = new Sticker(buffer, '', '@gimenz.id', 'mg.bot', '', 'love')
+     * const media = new Sticker(buffer, { packname: 'mg.bot pack', author: '@gimenz.id', packId: '', categories: 'love' })
      * await client.sendMessage(from, await data.toMessage(), { quoted: m })
      */
     toMessage = async () => {
         return ({ sticker: await this.build() })
     }
 
-    static extract() {
+    /**
+     * 
+     * @typedef {Object} RawMetadata 
+     * @property {Array<string>} emoji WASticker Emoji Categories
+     * @property {string} sticker-pack-id WASticker Pack ID
+     * @property {string} sticker-pack-name WASticker Pack Name
+     * @property {string} sticker-pack-publisher WASticker Pack Author
+     */
 
+    /**
+     * Extracts metadata from a WebP image.
+     * @param {Buffer} input - The image buffer to extract metadata from
+     * @returns {Promise<RawMetadata>}
+     */
+    static async extract(input) {
+        const img = new Image()
+        await img.load(input)
+        const exif = img.exif?.toString('utf-8') ?? '{}'
+        return JSON.parse(exif.substring(exif.indexOf('{'), exif.lastIndexOf('}') + 1) ?? '{}')
     }
 }
 
-module.exports = Sticker;
+module.exports = {
+    Sticker,
+    cropType
+};

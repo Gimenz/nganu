@@ -2,14 +2,16 @@
 [ kirimkan link post dari social media yang ingin di download, dan tunggu bot memproses ] - contoh : https://www.instagram.com/reel/CXg9cuaDuNq
 
 *Supported links* :
-*>* Facebook [support public groups]
-*>* TikTok
-*>* Instagram <stories | highlights | post | reel | tv>
-*>* Pinterest <photo | video>
-*>* Twitter <photo | video> [support multiple media]
+*├* Facebook [support public groups]
+*├* TikTok
+*├* Instagram <stories | highlights | post | reel | tv>
+*├* Pinterest <photo | video>
+*└* Twitter <photo | video> [support multiple media]
 
 *CMD*
-*>* prefix sticker <reply/send media>  "image" | video"
-*>* prefix toimg <reply a sticker>
+*├* prefix sticker <reply/send> image | video | url
+*├* prefix tomp3 <reply/send> video
+*├* prefix extract <reply a sticker> -> extract sticker exif
+*└* prefix toimg <reply a sticker>
 
 *Note :* Jika menemukan bug, atau terdapat fitur bot yang error. jangan sungkan lapor ke owner agar segera diperbaiki.
