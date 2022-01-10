@@ -20,6 +20,9 @@ npm start
 ```
 **[ Install on Heroku ] :**
  - install ffmpeg [Click here](https://elements.heroku.com/buildpacks/jonathanong/heroku-buildpack-ffmpeg-latest)
+
+**[ Install on Termux ] :**
+ - I never install it on termux, bcz i did'nt have device that can install termux. but you can try it self
   
 ## Dependencies
 - [adiwajshing/baileys-md](https://github.com/adiwajshing/Baileys/tree/multi-device/) - WhatsApp Web Api
