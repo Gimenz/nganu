@@ -55,6 +55,7 @@ const {
     humanFileSize,
     fetchAPI,
     shrt,
+    secondsConvert,
 } = require('./utils');
 const { Sticker, cropType } = require('./utils/sticker')
 const { Serialize } = require('./lib/simple');
@@ -62,6 +63,7 @@ const { download, parseMention } = require('./lib/function');
 const { pasaran } = require('./lib/tgl');
 const { Emoji } = require('./utils/exif');
 const { toAudio } = require('./lib/converter');
+const YT = require('./lib/yt');
 
 /** DB */
 if (!fs.existsSync('./db/chatsJid.json')) {
@@ -69,7 +71,7 @@ if (!fs.existsSync('./db/chatsJid.json')) {
 }
 let chatsJid = JSON.parse(fs.readFileSync('./db/chatsJid.json', 'utf-8'))
 
-if (opts['server']) require('./server').srv(global.client)
+if (opts['server']) require('./server')
 
 const start = async () => {
     CFonts.say(`${package.name}`, {
@@ -95,6 +97,9 @@ const start = async () => {
     global.client = client
 
     client.ev.on('connection.update', async (update) => {
+        if (update.qr) {
+            require('./server').qrPrint(update.qr)
+        }
         const { connection, lastDisconnect } = update;
         if (connection === 'connecting') {
             console.log(
@@ -117,12 +122,6 @@ const start = async () => {
                 color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
                 color(`${package.name} is now Connected...`, '#38ef7d')
             );
-        } else {
-            console.log(
-                color('[SYS]', '#009FFF'),
-                color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
-                color(`Connection closed`, '#f12711')
-            );
         }
     });
 
@@ -135,11 +134,12 @@ const start = async () => {
             if (m.key.fromMe) return
             const from = m.key.remoteJid;
             let type = client.msgType = Object.keys(m.message)[0];
+            //console.log(m.message.listResponseMessage.singleSelectReply.selectedRowId);
             Serialize(client, m)
             const content = JSON.stringify(JSON.parse(JSON.stringify(msg)).messages[0].message)
             let t = m.messageTimestamp
             client.time = moment.tz('Asia/Jakarta').format('DD/MM HH:mm:ss')
-            let body = client.body = (type === 'conversation' && m.message.conversation) ? m.message.conversation : (type == 'imageMessage') && m.message.imageMessage.caption ? m.message.imageMessage.caption : (type == 'documentMessage') && m.message.documentMessage.caption ? m.message.documentMessage.caption : (type == 'videoMessage') && m.message.videoMessage.caption ? m.message.videoMessage.caption : (type == 'extendedTextMessage') && m.message.extendedTextMessage.text ? m.message.extendedTextMessage.text : (type == 'buttonsResponseMessage' && m.message.buttonsResponseMessage.selectedButtonId) ? m.message.buttonsResponseMessage.selectedButtonId : (type == 'templateButtonReplyMessage') && m.message.templateButtonReplyMessage.selectedId ? m.message.templateButtonReplyMessage.selectedId : ""
+            const body = (type === 'conversation') ? m.message.conversation : (type == 'imageMessage') ? m.message.imageMessage.caption : (type == 'videoMessage') ? m.message.videoMessage.caption : (type == 'extendedTextMessage') ? m.message.extendedTextMessage.text : (type == 'buttonsResponseMessage') ? m.message.buttonsResponseMessage.selectedButtonId : (type == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (type == 'templateButtonReplyMessage') ? m.message.templateButtonReplyMessage.selectedId : (type === 'messageContextInfo') ? (m.message.listResponseMessage.singleSelectReply.selectedRowId || m.message.buttonsResponseMessage.selectedButtonId || m.text) : ''
 
             let isGroupMsg = isJidGroup(from)
             const isMedia = (type === 'imageMessage' || type === 'videoMessage')
@@ -167,9 +167,9 @@ const start = async () => {
             let cmd = client.cmd = isCmd ? body.slice(1).trim().split(/ +/).shift().toLocaleLowerCase() : null
             let url = args.length !== 0 ? args[0] : ''
 
-            const typing = async (jid) => await client.sendPresenceUpdate('composing', jid)
-            const recording = async (jid) => await client.sendPresenceUpdate('recording', jid)
-            const waiting = async (jid, m) => await client.sendMessage(jid, { text: 'proses...' }, { quoted: m })
+            const typing = async (jid) => await client.presenceSubscribe(jid) && await client.sendPresenceUpdate('composing', jid)
+            const recording = async (jid) => await client.presenceSubscribe(jid) && await client.sendPresenceUpdate('recording', jid)
+            const waiting = async (jid, m) => await client.presenceSubscribe(jid) && await client.sendMessage(jid, { text: 'proses...' }, { quoted: m })
             global.reply = async (text) => {
                 await client.sendPresenceUpdate('composing', from)
                 return client.sendMessage(from, { text }, { quoted: m })
@@ -185,7 +185,13 @@ const start = async () => {
 
             // store user jid to json file
             if (isCmd) {
-                if (!chatsJid.some((x => x == from))) {
+                if (isGroupMsg) {
+                    if (!chatsJid.some((x => x == from))) {
+                        chatsJid.push(from)
+                        fs.writeFileSync('./db/chatsJid.json', JSON.stringify(chatsJid), 'utf-8')
+                    }
+                }
+                if (!chatsJid.some((x => x == sender))) {
                     chatsJid.push(from)
                     fs.writeFileSync('./db/chatsJid.json', JSON.stringify(chatsJid), 'utf-8')
                 }
@@ -205,7 +211,9 @@ const start = async () => {
                 console.log(color('[CMD]'), color(moment(t * 1000).format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`${cmd} [${args.length}]`), color(`${msgs(body)}`, 'cyan'), '~> from', gradient.teen(pushname), 'in', gradient.fruit(formattedTitle))
             }
 
-            await client.sendReadReceipt(from, sender, [m.key.id])
+            if (isCmd) {
+                await client.sendReadReceipt(from, sender, [m.key.id])
+            }
 
             if (/https:\/\/.+\.tiktok.+/g.test(body) && !m.isBot) {
                 try {
@@ -421,6 +429,102 @@ const start = async () => {
             }
 
             // CMD 
+            if (cmd == 'music') {
+                try {
+                    if (args.length < 1) return reply(`*Fitur mencari lagu full tag metadata, sangat disarankan unutk memasukkan judul lagu yang tepat*\n${prefix}${cmd} judul - artis\n\ncontoh : ${prefix}${cmd} samudra janji - bima tarore`)
+                    await typing(from)
+                    const search = await YT.searchTrack(args.join(' '))
+                    let caption = `✅ *Track ditemukan!*\n\n` +
+                        `*Source :* ${search[0].isYtMusic ? 'YouTube Music' : 'YouTube'}\n` +
+                        `*Title :* ${search[0].title}\n` +
+                        `*Artist :* ${search[0].artist}\n` +
+                        `*Durasi :* ${search[0].duration.label}`
+                    await sendFileFromUrl(from, search[0].image, caption, m)
+                    await recording(from)
+                    const lagu = await YT.downloadMusic(search)
+                    await client.sendMessage(from, { document: { url: lagu.path }, mimetype: 'audio/mp3', fileName: lagu.meta.title + '.mp3' }, { quoted: m }).then(() => {
+                        try {
+                            fs.unlinkSync(lagu.path)
+                        } catch (error) {
+                            console.log(error);
+                        }
+                    })
+                } catch (error) {
+                    reply('aww snap. error happened')
+                    console.log(error);
+                }
+            }
+
+            if (cmd == 'play') {
+                try {
+                    if (args.length < 1) return reply(`*Fitur mencari lagu full tag metadata, sangat disarankan unutk memasukkan judul lagu yang tepat*\n${prefix}${cmd} judul - artis\n\ncontoh : ${prefix}${cmd} samudra janji - bima tarore`)
+                    await typing(from)
+                    const arr = await YT.searchTrack(args.join(' '))
+                    let list = new Array();
+                    let desc = `🎶 *Music Downloader*\nMusic Downloader dengan full tag metadata\n\nDitemukan *${arr.length}* lagu`
+                    for (let i = 0; i < arr.length; i++) {
+                        list.push({
+                            title: `${i + 1}. ${arr[i].title}`,
+                            description: `Artist : ${arr[i].artist}\nAlbum : ${arr[i].album}\nDuration : ${arr[i].duration.label}\nSource : ${arr[i].isYtMusic ? 'YouTube Music' : 'YouTube'}\nId : ${arr[i].id}`,
+                            rowId: `${prefix}music ${arr[i].id}`
+                        });
+                    }
+                    await sendListM(
+                        from,
+                        { buttonText: 'Music Downloader', description: desc, title: 'Pilih untuk mendownload' },
+                        list,
+                        m
+                    )
+                } catch (error) {
+                    reply('aww snap. error happened')
+                    console.log(error);
+                }
+            }
+
+            if (cmd == 'yt' || cmd == 'ytmp4') {
+                if (args.length < 1 || !isUrl(url) || !YT.isYTUrl(url)) return reply('Bukan link YouTube')
+                await typing(from)
+                try {
+                    const video = await YT.mp4(url)
+                    let caption = `✅ *YouTube Downloader*\n\n` +
+                        `*Title :* ${video.title}\n` +
+                        `*Channel :* ${video.channel}\n` +
+                        `*Published :* ${video.date}\n` +
+                        `*Quality :* ${video.quality}\n` +
+                        `*Durasi :* ${secondsConvert(video.duration)}`
+                    reply(caption)
+                    await sendFileFromUrl(from, video.videoUrl, '', m)
+                } catch (error) {
+                    reply('aww snap. error happened')
+                    console.log(error);
+                }
+            }
+
+            if (cmd == 'ytmp3') {
+                try {
+                    if (args.length < 1 || !isUrl(url) || !YT.isYTUrl(url)) return reply('Bukan link YouTube')
+                    await typing(from)
+                    const dl = await YT.mp3(url)
+                    let caption = `✅ *YouTube Mp3 Downloader*\n\n` +
+                        `*Title :* ${dl.meta.title}\n` +
+                        `*Channel :* ${dl.meta.channel}\n` +
+                        `*Durasi :* ${secondsConvert(dl.meta.seconds)}\n` +
+                        `*Size :* ${humanFileSize(dl.size, true)}`
+                    reply(caption)
+                    await recording(from)
+                    await client.sendMessage(from, { document: { url: dl.path }, mimetype: 'audio/mp3', fileName: dl.meta.title + '.mp3' }, { quoted: m }).then(() => {
+                        try {
+                            fs.unlinkSync(dl.path)
+                        } catch (error) {
+                            console.log(error);
+                        }
+                    })
+                } catch (error) {
+                    reply('aww snap. error happened')
+                    console.log(error);
+                }
+            }
+
             if (cmd == 'help' || cmd == 'menu') {
                 await typing(from)
                 const buttonsDefault = [
@@ -587,6 +691,35 @@ const start = async () => {
             + 'END:VCARD'
         return client.sendMessage(jid, { contacts: { displayName: name, contacts: [{ vcard }] }, mentions: men ? men : [] }, { quoted: quoted })
     }
+
+    /**
+     * send ListMessage with custom array
+     * @param {string} jid this message send to?
+     * @param {Object} button { buttonText, description, title }
+     * @param {Array|Object} rows list of edited rows
+     * @param {Object} quoted quoted m
+     * @param {Object} options 
+     * @returns 
+     */
+    async function sendListM(jid, button, rows, quoted, options) {
+        await client.sendPresenceUpdate('composing', jid)
+        let messageList = WAProto.Message.fromObject({
+            listMessage: WAProto.ListMessage.fromObject({
+                buttonText: button.buttonText,
+                description: button.description,
+                listType: 1,
+                sections: [
+                    {
+                        title: button.title,
+                        rows: [...rows]
+                    }
+                ]
+            })
+        })
+        let waMessageList = generateWAMessageFromContent(jid, messageList, { quoted, userJid: jid, contextInfo: { ...options } })
+        return await client.relayMessage(jid, waMessageList.message, { messageId: waMessageList.key.id })
+    }
+
     client.downloadMediaMessage = downloadMediaMessage
     /**
      * 

@@ -9,6 +9,10 @@
 *└* Twitter <photo | video> [support multiple media]
 
 *CMD*
+*├* prefix ytmp3 <url>
+*├* prefix ytmp4 <url>
+*├* prefix play <judul lagu>
+*├* prefix music <judul lagu>
 *├* prefix sticker <reply/send> image | video | url
 *├* prefix tomp3 <reply/send> video
 *├* prefix extract <reply a sticker> -> extract sticker exif

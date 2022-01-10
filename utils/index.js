@@ -10,6 +10,7 @@
  */
 
 const { S_WHATSAPP_NET } = require('@adiwajshing/baileys-md');
+const fs = require('fs')
 const chalk = require('chalk');
 global.moment = require('moment-timezone');
 const mime = require('mime-types');
@@ -185,6 +186,15 @@ function shrt(url, ...args) {
 	return data
 }
 
+// source -> https://stackoverflow.com/a/52560608
+function secondsConvert(seconds, hour = false) {
+	const format = val => `0${Math.floor(val)}`.slice(-2)
+	const hours = seconds / 3600
+	const minutes = (seconds % 3600) / 60
+	const res = hour ? [hours, minutes, seconds % 60] : [minutes, seconds % 60]
+
+	return res.map(format).join(':')
+}
 
 module.exports = {
 	processTime,
@@ -196,5 +206,6 @@ module.exports = {
 	humanFileSize,
 	fetchAPI,
 	formatPhone,
-	shrt
+	shrt,
+	secondsConvert
 };
