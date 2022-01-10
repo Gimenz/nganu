@@ -20,6 +20,7 @@ npm start
 ```
 **[ Install on Heroku ] :**
  - install ffmpeg [Click here](https://elements.heroku.com/buildpacks/jonathanong/heroku-buildpack-ffmpeg-latest)
+ - if all are done. you can scan qr code from web browser, just open yout herokuapp and add /qr in the path, example: https://koncoasu.herokuapp.com/qr
 
 **[ Install on Termux ] :**
  - I never install it on termux, bcz i did'nt have device that can install termux. but you can try it self
