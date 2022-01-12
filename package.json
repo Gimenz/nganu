@@ -1,6 +1,6 @@
 {
   "name": "nganu",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "simple Multi Device [MD] whatsapp-bot ",
   "main": "index.js",
   "directories": {
@@ -37,7 +37,7 @@
     "file-type": "^16.5.3",
     "fluent-ffmpeg": "^2.1.2",
     "gradient-string": "^2.0.0",
-    "insta-fetcher": "^1.2.95",
+    "insta-fetcher": "^1.2.98",
     "mime-types": "^2.1.34",
     "moment-timezone": "^0.5.34",
     "node-id3": "^0.2.3",

@@ -2,14 +2,14 @@
  * Author  : Gimenz
  * Name    : nganu
  * Version : 1.0
- * Update  : 09 Januari 2022
+ * Update  : 12 Januari 2022
  * 
  * If you are a reliable programmer or the best developer, please don't change anything.
  * If you want to be appreciated by others, then don't change anything in this script.
  * Please respect me for making this tool from the beginning.
  */
 
-const { S_WHATSAPP_NET } = require('@adiwajshing/baileys-md');
+const { S_WHATSAPP_NET, URL_REGEX } = require('@adiwajshing/baileys-md');
 const fs = require('fs')
 const chalk = require('chalk');
 global.moment = require('moment-timezone');
@@ -59,7 +59,7 @@ const processTime = (timestamp, now) => {
  * @param  {String} url
  */
 const isUrl = (url) => {
-	return new RegExp(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/gi).test(url)
+	return URL_REGEX.test(url)
 };
 
 /**
@@ -115,7 +115,7 @@ async function getBuffer(input, optionsOverride = {}) {
  *
  * @return Formatted string.
  */
-function humanFileSize(bytes, si = false, dp = 1) {
+function humanFileSize(bytes, si = true, dp = 1) {
 	const thresh = si ? 1000 : 1024;
 
 	if (Math.abs(bytes) < thresh) {
@@ -166,15 +166,7 @@ const formatPhone = function (number) {
 }
 
 function shrt(url, ...args) {
-	// source -> https://stackoverflow.com/questions/1349404/generate-random-string-characters-in-javascript
-	var result = '';
-	var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-	var charactersLength = characters.length;
-	for (var i = 0; i < 5; i++) {
-		result += characters.charAt(Math.floor(Math.random() *
-			charactersLength));
-	}
-	let id = result;
+	let id = randomBytes(32).toString('base64').replace(/\W\D/gi, '').slice(0, 5);
 
 	let data = {
 		id,

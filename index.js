@@ -274,7 +274,7 @@ const start = async () => {
                 }
             }
 
-            if (/(?:https?:\/\/)?(?:www\.)?(?:instagram\.com(?:\/\w+)?\/(p|reel|tv)\/)([\w-]+)(?:\/)?(\?.*)?$/gim.test(body) && !m.isBot) {
+            if (/(?:https?:\/\/)?(?:www\.)?(?:instagram\.com(?:\/\.+?)?\/(p|reel|tv)\/)([\w-]+)(?:\/)?(\?.*)?$/gim.test(body) && !m.isBot) {
                 try {
                     let { type, shortcode } = shortcodeFormatter(body)
                     url = `https://www.instagram.com/${type}/${shortcode}`;
