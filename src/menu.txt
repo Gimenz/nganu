@@ -8,13 +8,19 @@
 *├* Pinterest <photo | video>
 *└* Twitter <photo | video> [support multiple media]
 
+*Info!*
+simbol *<>* berarti argumen wajib di isi
+simbol *()* berarti argumen tidak wajib/opsional
+simbol *|* bermakna _atau_ */* 
+
 *CMD*
-*├* prefix ytmp3 <url>
+*├* prefix ytmp3 <url> (--metadata | --vn)
 *├* prefix ytmp4 <url>
 *├* prefix play <judul lagu>
 *├* prefix music <judul lagu>
 *├* prefix sticker <reply/send> image | video | url
 *├* prefix tomp3 <reply/send> video
+*├* prefix 8d <reply/send> video 
 *├* prefix extract <reply a sticker> -> extract sticker exif
 *└* prefix toimg <reply a sticker>
 

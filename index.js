@@ -27,23 +27,32 @@ const {
     S_WHATSAPP_NET,
     toBuffer,
     WAProto,
-    extensionForMediaMessage
+    extensionForMediaMessage,
+    extractMessageContent,
+    WAMetric,
+    decryptMediaMessageBuffer
 } = require('@adiwajshing/baileys-md');
 const pino = require('pino');
 const CFonts = require('cfonts');
 const gradient = require('gradient-string');
 let package = require('./package.json');
-let session = `./session.json`;
-const { state, saveState } = useSingleFileAuthState(session);
+const yargs = require('yargs/yargs')
+global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse())
 global.config = require('./src/config.json')
 global.quot = config.quot
 global.API = config.api
 global.owner = config.owner
 global.footer = `${package.name} ~ Multi Device [BETA]`
-let { igApi, shortcodeFormatter } = require('insta-fetcher');
+let { igApi, shortcodeFormatter, isIgPostUrl } = require('insta-fetcher');
 let ig = new igApi(process.env.session_id)
-const yargs = require('yargs/yargs')
-global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse())
+let session;
+if (opts['server']) require('./server')
+if (opts['test']) {
+    session = './test-session.json'
+} else {
+    session = './session.json'
+}
+const { state, saveState } = useSingleFileAuthState(session);
 
 /** LOCAL MODULE */
 const {
@@ -62,7 +71,7 @@ const { Serialize } = require('./lib/simple');
 const { download, parseMention } = require('./lib/function');
 const { pasaran } = require('./lib/tgl');
 const { Emoji } = require('./utils/exif');
-const { toAudio } = require('./lib/converter');
+const { toAudio, toGif, toMp4, EightD } = require('./lib/converter');
 const YT = require('./lib/yt');
 
 /** DB */
@@ -70,8 +79,6 @@ if (!fs.existsSync('./db/chatsJid.json')) {
     fs.writeFileSync('./db/chatsJid.json', JSON.stringify([]), 'utf-8')
 }
 let chatsJid = JSON.parse(fs.readFileSync('./db/chatsJid.json', 'utf-8'))
-
-if (opts['server']) require('./server')
 
 const start = async () => {
     CFonts.say(`${package.name}`, {
@@ -149,7 +156,7 @@ const start = async () => {
             const isQuotedSticker = type === 'extendedTextMessage' && content.includes('stickerMessage')
             let sender = m.sender
             const isOwner = config.owner.includes(sender)
-            let pushname = client.pushname = m.pushName
+            let pushname = m.pushName
             const botNumber = client.user.id
             const groupId = isGroupMsg ? from : ''
             const groupMetadata = isGroupMsg ? await client.groupMetadata(groupId) : ''
@@ -158,18 +165,27 @@ const start = async () => {
             for (let i of groupMembers) {
                 i.isAdmin ? groupAdmins.push(i.jid) : ''
             }
-            let formattedTitle = client.groupName = isGroupMsg ? groupMetadata.subject : ''
-            global.prefix = client.prefix = /^[./~!#%^&+=\-,;:()]/.test(body) ? body.match(/^[./~!#%^&+=\-,;:()]/gi) : '#'
+            let formattedTitle = isGroupMsg ? groupMetadata.subject : ''
+            global.prefix = /^[./~!#%^&+=\-,;:()]/.test(body) ? body.match(/^[./~!#%^&+=\-,;:()]/gi) : '#'
 
             const arg = body.substring(body.indexOf(' ') + 1)
-            let args = client.args = body.trim().split(/ +/).slice(1);
+            let args = body.trim().split(/ +/).slice(1);
+            let flags = [];
             let isCmd = client.isCmd = body.startsWith(global.prefix);
             let cmd = client.cmd = isCmd ? body.slice(1).trim().split(/ +/).shift().toLocaleLowerCase() : null
-            let url = args.length !== 0 ? args[0] : ''
+            let url = args.length !== 0 ? args[0] : '';
+
+            for (let i of args) {
+                if (i.startsWith('--')) flags.push(i.slice(2).toLowerCase())
+            }
 
             const typing = async (jid) => await client.presenceSubscribe(jid) && await client.sendPresenceUpdate('composing', jid)
             const recording = async (jid) => await client.presenceSubscribe(jid) && await client.sendPresenceUpdate('recording', jid)
-            const waiting = async (jid, m) => await client.presenceSubscribe(jid) && await client.sendMessage(jid, { text: 'proses...' }, { quoted: m })
+            const waiting = async (jid, m) => {
+                await client.presenceSubscribe(jid)
+                await client.sendPresenceUpdate('composing', jid)
+                await client.sendMessage(jid, { text: 'proses...' }, { quoted: m })
+            }
             global.reply = async (text) => {
                 await client.sendPresenceUpdate('composing', from)
                 return client.sendMessage(from, { text }, { quoted: m })
@@ -192,8 +208,42 @@ const start = async () => {
                     }
                 }
                 if (!chatsJid.some((x => x == sender))) {
-                    chatsJid.push(from)
+                    chatsJid.push(sender)
                     fs.writeFileSync('./db/chatsJid.json', JSON.stringify(chatsJid), 'utf-8')
+                }
+            }
+
+            if (isOwner) {
+                if (body.startsWith("> ")) {
+                    await typing(from)
+                    let syntaxerror = require('syntax-error');
+                    let _return;
+                    let _syntax = '';
+                    let _text = body.slice(2);
+                    try {
+                        let i = 15
+                        let exec = new (async () => { }).constructor('print', 'msg', 'require', 'client', 'm', 'axios', 'fs', 'exec', _text);
+                        _return = await exec.call(client, (...args) => {
+                            if (--i < 1) return
+                            console.log(...args)
+                            return reply(from, util.format(...args))
+                        }, msg, require, client, m, axios, fs, exec);
+                    } catch (e) {
+                        let err = await syntaxerror(_text, 'Execution Function', {
+                            allowReturnOutsideFunction: true,
+                            allowAwaitOutsideFunction: true
+                        })
+                        if (err) _syntax = '```' + err + '```\n\n'
+                        _return = e
+                    } finally {
+                        reply(_syntax + util.format(_return))
+                    }
+                } else if (body.startsWith("$ ")) {
+                    await typing(from)
+                    exec(body.slice(2), (err, stdout) => {
+                        if (err) return reply(`${err}`)
+                        if (stdout) reply(`${stdout}`)
+                    })
                 }
             }
 
@@ -274,7 +324,7 @@ const start = async () => {
                 }
             }
 
-            if (/(?:https?:\/\/)?(?:www\.)?(?:instagram\.com(?:\/\.+?)?\/(p|reel|tv)\/)([\w-]+)(?:\/)?(\?.*)?$/gim.test(body) && !m.isBot) {
+            if (isIgPostUrl(body) && !m.isBot) {
                 try {
                     let { type, shortcode } = shortcodeFormatter(body)
                     url = `https://www.instagram.com/${type}/${shortcode}`;
@@ -342,7 +392,7 @@ const start = async () => {
                         const { data } = await axios.get(res.request.res.responseUrl + '?__a=1')
                         return data.user.username
                     })
-                    console.log(username);
+
                     let [, highlightId, mediaId] = /https:\/\/www\.instagram\.com\/s\/(.*?)\?story_media_id=([\w-]+)/g.exec(link_highlight)
                     highlightId = Buffer.from(highlightId, 'base64').toString('binary').match(/\d+/g)[0]
                     let { data } = await ig.fetchHighlights(username)
@@ -428,7 +478,52 @@ const start = async () => {
                 }
             }
 
+            if (/8d(audio|)/i.test(cmd)) {
+                let mediaType = m.quoted ? m.quoted.mtype : m.mtype
+                let msg = m.quoted ? m.quoted : m
+                if (/audio|video|document/i.test(mediaType)) {
+                    await waiting(from, m)
+                    const buffer = await client.downloadMediaMessage(msg)
+                    const res = await EightD(buffer)
+                    await recording(from)
+                    await sendAudio(from, res, m)
+                } else {
+                    reply(`reply a video/audio with caption ${prefix}${cmd}`)
+                }
+            }
+
             // CMD 
+            if (cmd == 'bc' && isOwner) {
+                try {
+                    if (args.length < 1) return reply('text nya mana?')
+                    let mediaType = m.quoted ? m.quoted.mtype : m.mtype
+                    if (isMedia || /image|video/i.test(mediaType)) {
+                        const buff = await downloadMediaMessage(m.quoted ? m.quoted : m.message[type])
+                        for (let v of chatsJid) {
+                            await delay(5000)
+                            let media = {
+                                caption: `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n*#${chatsJid.indexOf(v) + 1}*`
+                            };
+                            /image|video/i.test(mediaType)
+                                ? media['image'] = buff
+                                : media['video'] = buff
+
+                            await client.sendMessage(v, media)
+                        }
+                        reply(`Broadcasted to *${chatsJid.length}*`)
+                    } else {
+                        for (let v of chatsJid) {
+                            await delay(5000)
+                            await client.sendMessage(v, { text: `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n*#${chatsJid.indexOf(v) + 1}*` }, { sendEphemeral: true })
+                        }
+                        reply(`Broadcasted to *${chatsJid.length}*`)
+                    }
+                } catch (error) {
+                    reply(util.format(error))
+                    console.log(error);
+                }
+            }
+
             if (cmd == 'music') {
                 try {
                     if (args.length < 1) return reply(`*Fitur mencari lagu full tag metadata, sangat disarankan unutk memasukkan judul lagu yang tepat*\n${prefix}${cmd} judul - artis\n\ncontoh : ${prefix}${cmd} samudra janji - bima tarore`)
@@ -442,13 +537,7 @@ const start = async () => {
                     await sendFileFromUrl(from, search[0].image, caption, m)
                     await recording(from)
                     const lagu = await YT.downloadMusic(search)
-                    await client.sendMessage(from, { document: { url: lagu.path }, mimetype: 'audio/mp3', fileName: lagu.meta.title + '.mp3' }, { quoted: m }).then(() => {
-                        try {
-                            fs.unlinkSync(lagu.path)
-                        } catch (error) {
-                            console.log(error);
-                        }
-                    })
+                    await sendFile(from, lagu.path, lagu.meta.title + '.mp3', 'audio/mp3', m)
                 } catch (error) {
                     reply('aww snap. error happened')
                     console.log(error);
@@ -466,7 +555,7 @@ const start = async () => {
                         list.push({
                             title: `${i + 1}. ${arr[i].title}`,
                             description: `Artist : ${arr[i].artist}\nAlbum : ${arr[i].album}\nDuration : ${arr[i].duration.label}\nSource : ${arr[i].isYtMusic ? 'YouTube Music' : 'YouTube'}\nId : ${arr[i].id}`,
-                            rowId: `${prefix}music ${arr[i].id}`
+                            rowId: `${prefix}ytmp3 ${arr[i].url}`
                         });
                     }
                     await sendListM(
@@ -475,6 +564,55 @@ const start = async () => {
                         list,
                         m
                     )
+                } catch (error) {
+                    reply('aww snap. error happened')
+                    console.log(error);
+                }
+            }
+
+            if (cmd == 'ytmp3') {
+                try {
+                    url = args[0]
+                    if (args.length < 1 || !isUrl(url) || !YT.isYTUrl(url)) return reply(`*Penggunaan:*\n${prefix}${cmd} url --args\n*args* bersifat opsional (bisa diisi atau tidak)\n\n` +
+                        `*list args:*\n--metadata : mendownload mp3 dengan tags metadata\n--vn dapat langsung di play via WA\n\ncontoh : ${prefix}ytmp3 https://youtu.be/0Mal8D63Zew --metadata`)
+                    await typing(from)
+                    if (type == 'listResponseMessage') {
+                        const videoID = YT.getVideoID(url)
+                        const search = await YT.searchTrack(videoID)
+                        const metadata = search.filter(x => x.id == videoID)[0]
+                        const dl = await YT.mp3(metadata.url, { Album: metadata.album, Artist: metadata.artist, Image: metadata.image, Title: metadata.title })
+                        let caption = `✅ *Music Downloader*\n` +
+                            `*Title :* ${metadata.title}\n` +
+                            `*Artist :* ${metadata.artist}\n` +
+                            `*Durasi :* ${metadata.duration.label}\n` +
+                            `*Size :* ${humanFileSize(dl.size, true)}\n\nsedang mengirim file audio...`
+                        await sendFileFromUrl(from, metadata.image, caption, m)
+                        await recording(from)
+                        await sendFile(from, dl.path, `${metadata.title} - ${metadata.artist}.mp3`, 'audio/mp3', m, { jpegThumbnail: (await getBuffer(metadata.image)).buffer })
+                    } else {
+                        let dl = new Set()
+                        if (flags.find(v => v.toLowerCase() === 'metadata')) {
+                            await reply('Downloading mp3 [with tags metadata]')
+                            const obj = await YT.mp3(url, '', true)
+                            dl.add(obj)
+                        } else {
+                            const obj = await YT.mp3(url)
+                            dl.add(obj)
+                        }
+                        dl = [...dl][0]
+                        let caption = `✅ *YouTube Mp3 Downloader*\n\n` +
+                            `*Title :* ${dl.meta.title}\n` +
+                            `*Channel :* ${dl.meta.channel}\n` +
+                            `*Durasi :* ${secondsConvert(dl.meta.seconds)}\n` +
+                            `*Size :* ${humanFileSize(dl.size, true)}`
+                        reply(caption)
+                        await recording(from)
+                        if (flags.find(v => v.toLowerCase() === 'vn')) {
+                            await sendAudio(from, dl.path, m, { jpegThumbnail: (await getBuffer(dl.meta.image)).buffer })
+                        } else {
+                            await sendFile(from, dl.path, `${dl.meta.title}.mp3`, 'audio/mp3', m, { jpegThumbnail: (await getBuffer(dl.meta.image)).buffer })
+                        }
+                    }
                 } catch (error) {
                     reply('aww snap. error happened')
                     console.log(error);
@@ -494,31 +632,6 @@ const start = async () => {
                         `*Durasi :* ${secondsConvert(video.duration)}`
                     reply(caption)
                     await sendFileFromUrl(from, video.videoUrl, '', m)
-                } catch (error) {
-                    reply('aww snap. error happened')
-                    console.log(error);
-                }
-            }
-
-            if (cmd == 'ytmp3') {
-                try {
-                    if (args.length < 1 || !isUrl(url) || !YT.isYTUrl(url)) return reply('Bukan link YouTube')
-                    await typing(from)
-                    const dl = await YT.mp3(url)
-                    let caption = `✅ *YouTube Mp3 Downloader*\n\n` +
-                        `*Title :* ${dl.meta.title}\n` +
-                        `*Channel :* ${dl.meta.channel}\n` +
-                        `*Durasi :* ${secondsConvert(dl.meta.seconds)}\n` +
-                        `*Size :* ${humanFileSize(dl.size, true)}`
-                    reply(caption)
-                    await recording(from)
-                    await client.sendMessage(from, { document: { url: dl.path }, mimetype: 'audio/mp3', fileName: dl.meta.title + '.mp3' }, { quoted: m }).then(() => {
-                        try {
-                            fs.unlinkSync(dl.path)
-                        } catch (error) {
-                            console.log(error);
-                        }
-                    })
                 } catch (error) {
                     reply('aww snap. error happened')
                     console.log(error);
@@ -718,6 +831,38 @@ const start = async () => {
         })
         let waMessageList = generateWAMessageFromContent(jid, messageList, { quoted, userJid: jid, contextInfo: { ...options } })
         return await client.relayMessage(jid, waMessageList.message, { messageId: waMessageList.key.id })
+    }
+
+    /**
+     * send file as document, from path
+     * @param {string} jid 
+     * @param {string} path 
+     * @param {string} fileName 
+     * @param {string} mimetype 
+     * @param {any} quoted
+     * @returns
+     */
+    async function sendFile(jid, path, fileName, mimetype = '', quoted = '', options = {}) {
+        return await client.sendMessage(jid, { document: { url: path }, mimetype, fileName, ...options }, { quoted })
+            .then(() => {
+                try {
+                    fs.unlinkSync(path)
+                } catch (error) {
+                    console.log(error);
+                }
+            })
+    }
+
+    async function sendAudio(jid, path, quoted, options = {}) {
+        let mimetype = getDevice(quoted.id) == 'ios' ? 'audio/mpeg' : 'audio/mp4'
+        await client.sendMessage(jid, { audio: { url: path }, mimetype, mp3: true, ...options }, { quoted })
+            .then(() => {
+                try {
+                    fs.unlinkSync(path)
+                } catch (error) {
+                    console.log(error);
+                }
+            })
     }
 
     client.downloadMediaMessage = downloadMediaMessage

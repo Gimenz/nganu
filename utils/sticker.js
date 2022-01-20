@@ -88,6 +88,16 @@ class Sticker {
         })
     }
 
+    static convertGif = (input) => {
+        return new Promise((resolve, reject) => {
+            sharp(input)
+                .gif()
+                .toBuffer()
+                .then(resolve)
+                .catch(reject)
+        })
+    }
+
 
     /**
      * convert video to webp WASticker format

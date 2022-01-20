@@ -10,6 +10,7 @@
  */
 
 const { S_WHATSAPP_NET, URL_REGEX } = require('@adiwajshing/baileys-md');
+const { randomBytes } = require('crypto');
 const fs = require('fs')
 const chalk = require('chalk');
 global.moment = require('moment-timezone');
