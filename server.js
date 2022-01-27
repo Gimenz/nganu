@@ -18,6 +18,8 @@ const si = require('systeminformation')
 const io = require('socket.io')(httpServer)
 const qrcode = require('qrcode')
 const { resizeImage } = require('./lib/converter')
+const { isJidUser, isJidGroup } = require('@adiwajshing/baileys')
+global.qr = '';
 
 app.set('json spaces', 2);
 app.use(express.json());
@@ -34,10 +36,24 @@ app.get('/', async (req, res) => {
             memory_used: humanFileSize(ram.used, true, 1),
             cpu: cpu.avg + ' Ghz',
             disk: humanFileSize(disk[0].available, true, 1) + ' free of ' + humanFileSize(disk[0].size, true, 1),
+            chats: {
+                total: store.chats.length,
+                private: store.chats.filter(x => isJidUser(x.id)).length,
+                groups: store.chats.filter(x => isJidGroup(x.id)).length
+            }
         }
         res.status(200).json(json)
     } catch (error) {
         res.status(503).send(error)
+    }
+})
+
+app.get('/qr', async (req, res, next) => {
+    try {
+        res.setHeader("content-type", "image/png")
+        res.send(await resizeImage(await qrcode.toBuffer(global.qr), 512, 512))
+    } catch (error) {
+        res.send('err, ' + error.message)
     }
 })
 
@@ -59,7 +75,6 @@ app.get('/send', async (req, res, next) => {
     res.status(200).jsonp(data)
     console.log(color(`[SEND] send message to ${id}`, 'green') + color(`${PORT}`, 'yellow'))
 })
-
 
 const qrPrint = (qr) => {
     app.get('/qr', async (req, res) => {

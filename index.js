@@ -30,13 +30,19 @@ const {
     extensionForMediaMessage,
     extractMessageContent,
     WAMetric,
-    decryptMediaMessageBuffer
-} = require('@adiwajshing/baileys-md');
+    decryptMediaMessageBuffer,
+    downloadHistory,
+    makeInMemoryStore,
+    unixTimestampSeconds,
+    WAFlag,
+    isJidUser
+} = require('@adiwajshing/baileys');
 const pino = require('pino');
 const CFonts = require('cfonts');
 const gradient = require('gradient-string');
 let package = require('./package.json');
 const yargs = require('yargs/yargs')
+const { exec } = require('child_process');
 global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse())
 global.config = require('./src/config.json')
 global.quot = config.quot
@@ -54,6 +60,17 @@ if (opts['test']) {
 }
 const { state, saveState } = useSingleFileAuthState(session);
 
+// the store maintains the data of the WA connection in memory
+// can be written out to a file & read from it
+const store = makeInMemoryStore({ logger: pino().child({ level: 'debug', stream: 'store' }) })
+store.readFromFile('./db/baileys_store_multi.json')
+// save every 10s
+setInterval(() => {
+    store.writeToFile('./db/baileys_store_multi.json')
+}, 10_000)
+
+global.store = store
+
 /** LOCAL MODULE */
 const {
     color,
@@ -65,14 +82,17 @@ const {
     fetchAPI,
     shrt,
     secondsConvert,
+    formatPhone,
+    uploadImage,
 } = require('./utils');
-const { Sticker, cropType } = require('./utils/sticker')
-const { Serialize } = require('./lib/simple');
+const { Sticker, cropStyle } = require('./utils/sticker')
+const { Serialize, generateUrlInfo, downloadMediaMessage } = require('./lib/simple');
 const { download, parseMention } = require('./lib/function');
 const { pasaran } = require('./lib/tgl');
 const { Emoji } = require('./utils/exif');
 const { toAudio, toGif, toMp4, EightD } = require('./lib/converter');
 const YT = require('./lib/yt');
+const cmdMSG = require('./src/cmdMessage.json')
 
 /** DB */
 if (!fs.existsSync('./db/chatsJid.json')) {
@@ -104,26 +124,26 @@ const start = async () => {
     global.client = client
 
     client.ev.on('connection.update', async (update) => {
-        if (update.qr) {
-            require('./server').qrPrint(update.qr)
+        if (global.qr !== update.qr) {
+            global.qr = update.qr
         }
+
         const { connection, lastDisconnect } = update;
         if (connection === 'connecting') {
-            console.log(
-                color('[SYS]', '#009FFF'),
-                color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
-                color(`${package.name} is Authenticating...`, '#f12711')
-            );
+            console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`${package.name} is Authenticating...`, '#f12711'));
         } else if (connection === 'close') {
-            console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`Connection Closed, trying to reconnect`, '#f64f59'));
-            lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut
-                ? start()
-                : console.log(
-                    color('[SYS]', '#009FFF'),
-                    color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
-                    color(`WA Web Logged out`, '#f64f59')
-                );;
-        } else if (connection == 'open') {
+            const log = msg => console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(msg, '#f64f59'));
+            const { statusCode } = lastDisconnect.error?.output;
+
+            if (statusCode === DisconnectReason.badSession) { log(`Bad session file, delete ${session} and run again`); process.exit(); }
+            else if (statusCode === DisconnectReason.connectionClosed) { log('Connection closed, reconnecting....'); start() }
+            else if (statusCode === DisconnectReason.connectionLost) { log('Connection lost, reconnecting....'); start() }
+            else if (statusCode === DisconnectReason.connectionReplaced) { log('Connection Replaced, Another New Session Opened, Please Close Current Session First'); process.exit() }
+            else if (statusCode === DisconnectReason.loggedOut) { log(`Device Logged Out, Please Delete ${session} and Scan Again.`); process.exit(); }
+            else if (statusCode === DisconnectReason.restartRequired) { log('Restart required, restarting...'); start(); }
+            else if (statusCode === DisconnectReason.timedOut) { log('Connection timedOut, reconnecting...'); start(); }
+            else { console.log(`Unknown DisconnectReason: ${lastDisconnect.error?.out}|${connection}`) }
+        } else if (connection === 'open') {
             console.log(
                 color('[SYS]', '#009FFF'),
                 color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'),
@@ -133,6 +153,8 @@ const start = async () => {
     });
 
     client.ev.on('creds.update', () => saveState)
+
+    store.bind(client.ev)
 
     client.ev.on('messages.upsert', async (msg) => {
         try {
@@ -159,20 +181,23 @@ const start = async () => {
             let pushname = m.pushName
             const botNumber = client.user.id
             const groupId = isGroupMsg ? from : ''
-            const groupMetadata = isGroupMsg ? await client.groupMetadata(groupId) : ''
-            const groupMembers = isGroupMsg ? groupMetadata.participants : ''
+            const groupMetadata = isGroupMsg ? await client.groupMetadata(groupId) : {}
+            const groupMembers = isGroupMsg ? groupMetadata.participants : []
             const groupAdmins = []
             for (let i of groupMembers) {
                 i.isAdmin ? groupAdmins.push(i.jid) : ''
             }
+            const isGroupAdmin = groupAdmins.includes(sender)
+            const isBotGroupAdmin = groupAdmins.includes(botNumber)
+
             let formattedTitle = isGroupMsg ? groupMetadata.subject : ''
-            global.prefix = /^[./~!#%^&+=\-,;:()]/.test(body) ? body.match(/^[./~!#%^&+=\-,;:()]/gi) : '#'
+            global.prefix = /^[./~!#%^&=\,;:()]/.test(body) ? body.match(/^[./~!#%^&=\,;:()]/gi) : '#'
 
             const arg = body.substring(body.indexOf(' ') + 1)
             let args = body.trim().split(/ +/).slice(1);
             let flags = [];
             let isCmd = client.isCmd = body.startsWith(global.prefix);
-            let cmd = client.cmd = isCmd ? body.slice(1).trim().split(/ +/).shift().toLocaleLowerCase() : null
+            let cmd = client.cmd = isCmd ? body.slice(1).trim().split(/ +/).shift().toLowerCase() : null
             let url = args.length !== 0 ? args[0] : '';
 
             for (let i of args) {
@@ -186,7 +211,8 @@ const start = async () => {
                 await client.sendPresenceUpdate('composing', jid)
                 await client.sendMessage(jid, { text: 'proses...' }, { quoted: m })
             }
-            global.reply = async (text) => {
+            const reply = async (text) => {
+                await client.presenceSubscribe(from)
                 await client.sendPresenceUpdate('composing', from)
                 return client.sendMessage(from, { text }, { quoted: m })
             }
@@ -263,6 +289,9 @@ const start = async () => {
 
             if (isCmd) {
                 await client.sendReadReceipt(from, sender, [m.key.id])
+                await delay(2000)
+                await client.presenceSubscribe(from)
+                await client.sendPresenceUpdate('composing', from)
             }
 
             if (/https:\/\/.+\.tiktok.+/g.test(body) && !m.isBot) {
@@ -326,9 +355,7 @@ const start = async () => {
 
             if (isIgPostUrl(body) && !m.isBot) {
                 try {
-                    let { type, shortcode } = shortcodeFormatter(body)
-                    url = `https://www.instagram.com/${type}/${shortcode}`;
-                    logEvent(url);
+                    let { url } = shortcodeFormatter(body);
                     await waiting(from, m)
                     let result = await ig.fetchPost(url);
                     let arr = result.links;
@@ -336,17 +363,45 @@ const start = async () => {
                     capt += '• Name : ' + result.name + '\n';
                     capt += '• Username : ' + result.username + '\n';
                     capt += '• Likes : ' + result.likes + '\n';
+                    capt += '• Post Type : ' + result.postType + '\n';
                     capt += '• Media Count : ' + result.media_count;
                     reply(capt)
-                    for (let i = 0; i < arr.length; i++) {
-                        if (arr[i].type == "image") {
-                            await sendFileFromUrl(from, arr[i].url, '', m, '', 'jpeg',
-                                { height: arr[i].dimensions.height, width: arr[i].dimensions.width }
-                            )
-                        } else {
-                            await sendFileFromUrl(from, arr[i].url, '', m, '', 'mp4',
-                                { height: arr[i].dimensions.height, width: arr[i].dimensions.width }
-                            )
+                    if (result.music !== null) {
+                        const { original_sound_info, music_info } = result.music
+                        music_meta = original_sound_info !== null ? original_sound_info : music_info
+                        let idSound = shrt(
+                            original_sound_info !== null ? music_meta.progressive_download_url : music_meta.music_asset_info.progressive_download_url,
+                            { title: original_sound_info !== null ? `${music_meta.original_audio_title.join('')} - ${music_meta.ig_artist.full_name}` : `${music_meta.music_asset_info.title} - ${music_meta.music_asset_info.display_artist}` }
+                        )
+                        let idVideo = shrt(
+                            result.links[0].url,
+                            { title: `Audio asli - ${result.name}` }
+                        )
+                        const btnMusicMeta = [
+                            { quickReplyButton: { displayText: `Original Sound`, id: `${prefix}sendtaudio ${idSound.id}` } },
+                            { quickReplyButton: { displayText: `Extract Audio`, id: `${prefix}tomp3 ${idVideo.id}` } },
+                        ]
+                        client.sendMessage(
+                            from,
+                            {
+                                footer,
+                                templateButtons: btnMusicMeta,
+                                video: { url: result.links[0].url },
+                                headerType: 4
+                            },
+                            { quoted: m }
+                        )
+                    } else {
+                        for (let i = 0; i < arr.length; i++) {
+                            if (arr[i].type == "image") {
+                                await sendFileFromUrl(from, arr[i].url, '', m, '', 'jpeg',
+                                    { height: arr[i].dimensions.height, width: arr[i].dimensions.width }
+                                )
+                            } else {
+                                await sendFileFromUrl(from, arr[i].url, '', m, '', 'mp4',
+                                    { height: arr[i].dimensions.height, width: arr[i].dimensions.width }
+                                )
+                            }
                         }
                     }
                 } catch (error) {
@@ -463,9 +518,10 @@ const start = async () => {
                     if (isQuotedVideo) {
                         const buffer = await client.downloadMediaMessage(m.quoted)
                         const res = await toAudio(buffer)
-                        const message = await prepareWAMessageMedia({ audio: res, mimetype: 'audio/mp3' }, { upload: client.waUploadToServer, })
-                        let media = generateWAMessageFromContent(from, { audioMessage: message.audioMessage }, { quoted: m })
-                        await client.relayMessage(from, media.message, { messageId: media.key.id })
+                        await sendAudio(from, res, m)
+                        // const message = await prepareWAMessageMedia({ audio: res, mimetype: 'audio/mp3' }, { upload: client.waUploadToServer, })
+                        // let media = generateWAMessageFromContent(from, { audioMessage: message.audioMessage }, { quoted: m })
+                        // await client.relayMessage(from, media.message, { messageId: media.key.id })
                     } else if (type == 'templateButtonReplyMessage') {
                         let id = db.filter(x => x.id == args[0])[0]
                         const res = await toAudio(id.url)
@@ -498,7 +554,8 @@ const start = async () => {
                     if (args.length < 1) return reply('text nya mana?')
                     let mediaType = m.quoted ? m.quoted.mtype : m.mtype
                     if (isMedia || /image|video/i.test(mediaType)) {
-                        const buff = await downloadMediaMessage(m.quoted ? m.quoted : m.message[type])
+                        const buff = await downloadMediaMessage(m.quoted ? m.quoted : m)
+                        reply(`sending broadcast message to *${chatsJid.length}* chats, estimated ${Math.floor((5 * chatsJid.length) / 60)} minutes done.`)
                         for (let v of chatsJid) {
                             await delay(5000)
                             let media = {
@@ -512,6 +569,7 @@ const start = async () => {
                         }
                         reply(`Broadcasted to *${chatsJid.length}*`)
                     } else {
+                        reply(`sending broadcast message to *${chatsJid.length}* chats, estimated ${Math.floor((5 * chatsJid.length) / 60)} minutes done`)
                         for (let v of chatsJid) {
                             await delay(5000)
                             await client.sendMessage(v, { text: `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n*#${chatsJid.indexOf(v) + 1}*` }, { sendEphemeral: true })
@@ -668,27 +726,33 @@ const start = async () => {
             }
 
             if (/^s(|ti(c|)ker)$/i.test(cmd)) {
-                const crop = Object.keys(cropType).includes(args[0]) ? args[0] : undefined
+                let crop = flags.find(v => cropStyle.map(x => x == v.toLowerCase()))
                 let packname = /\|/i.test(body) ? arg.split('|')[0] : `${package.name}`
                 let stickerAuthor = /\|/i.test(body) ? arg.split('|')[1] : `${package.author}`
                 let categories = Object.keys(Emoji).includes(arg.split('|')[2]) ? arg.split('|')[2] : 'love' || 'love'
                 try {
                     if (isMedia && !m.message.videoMessage || isQuotedImage) {
-                        const message = isQuotedImage ? m.quoted : m.message.imageMessage
+                        const message = isQuotedImage ? m.quoted : m
                         const buff = await client.downloadMediaMessage(message)
                         const data = new Sticker(buff, { packname, author: stickerAuthor, packId: '', categories }, crop)
                         await client.sendMessage(from, await data.toMessage(), { quoted: m })
                     } else if (m.message.videoMessage || isQuotedVideo) {
                         if (isQuotedVideo ? m.quoted.seconds > 15 : m.message.videoMessage.seconds > 15) return reply('too long duration, max 15 seconds')
-                        const message = isQuotedVideo ? m.quoted : m.message.videoMessage
+                        const message = isQuotedVideo ? m.quoted : m
                         const buff = await client.downloadMediaMessage(message)
                         const data = new Sticker(buff, { packname, author: stickerAuthor, packId: '', categories })
                         await client.sendMessage(from, await data.toMessage(), { quoted: m })
-                    } else if (isUrl(url)) {
-                        const data = new Sticker(url, { packname, author: stickerAuthor, packId: '', categories })
+                    } else if (isQuotedSticker && !m.quoted.isAnimated) {
+                        const buff = await downloadMediaMessage(m.quoted)
+                        const data = new Sticker(buff, { packname, author: stickerAuthor, packId: '', categories }, crop)
                         await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                    } else if (isUrl(url)) {
+                        const data = new Sticker(url, { packname, author: stickerAuthor, packId: '', categories }, crop)
+                        await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                    } else if (flags.find(v => v.match(/args|help/))) {
+                        reply(`*list argumen :*\n\n${cropStyle.map(x => '--' + x).join('\n')}\n\nexample : ${prefix + cmd} --circle`)
                     } else {
-                        reply(`send/reply media. media is video or image\n\nexample :\n${prefix}sticker https://s.id/REl2\n${prefix}sticker send/reply media`)
+                        reply(`send/reply media. media is video or image\n\nexample :\n${prefix}sticker https://s.id/REl2\n${prefix}sticker send/reply media\n\nor you can add --args\n*list argumen :*\n\n${cropStyle.map(x => '--' + x).join('\n')}\n\nexample : ${prefix + cmd} --circle`)
                     }
                 } catch (error) {
                     reply('an error occurred');
@@ -696,11 +760,57 @@ const start = async () => {
                 }
             }
 
+            if (/fl(i|o)p|rotate/.test(cmd)) {
+                try {
+                    const degrees = ['90', '180', '270', 'flip', 'flop']
+                    const deg = /fl(i|o)p/i.test(cmd) ? cmd : Number(args[0])
+                    let crop = flags.find(v => cropStyle.map(x => x == v.toLowerCase()))
+                    if (isMedia || isQuotedImage) {
+                        const message = isQuotedImage ? m.quoted : m
+                        const buff = await client.downloadMediaMessage(message)
+                        const data = await Sticker.rotate(buff, deg);
+                        await client.sendMessage(from, { image: data, caption: args[0] }, { quoted: m })
+                    } else if (isQuotedSticker) {
+                        const buff = await client.downloadMediaMessage(m.quoted)
+                        const rotated = await Sticker.rotate(buff, deg);
+                        const data = new Sticker(rotated, { packname: package.name, author: package.author, packId: deg }, crop)
+                        await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                    } else {
+                        reply(`send/reply image or sticker. example :\n${prefix + cmd} degrees\n\nlist degrees :${degrees.map(x => '- ' + x).join('\n')}`)
+                    }
+                } catch (error) {
+                    console.log(error);
+                    reply('aww snap. error occurred')
+                }
+            }
+
+            if (/^meme(sti(c|)ker)/.test(cmd)) {
+                if (isMedia || isQuotedImage) {
+                    try {
+                        let [atas, bawah] = args.join(' ').replace('--nobg', '').replace('--removebg', '').split('|')
+                        const mediaData = await downloadMediaMessage(m.quoted ? m.quoted : m)
+                        let bgUrl;
+                        if (flags.find(v => v.match(/nobg|removebg/))) {
+                            const removed = await Sticker.removeBG(mediaData)
+                            bgUrl = await uploadImage(removed)
+                        } else {
+                            bgUrl = await uploadImage(mediaData)
+                        }
+                        const res = await Sticker.memeGenerator(atas ? atas : '', bawah ? bawah : '', bgUrl)
+                        const data = new Sticker(res, { packname: package.name, author: package.author })
+                        await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                    } catch (error) {
+                        console.log(error);
+                        reply('aww snap. error occurred')
+                    }
+                } else {
+                    reply(`send/reply image. example :\n${prefix + cmd} aku diatas | kamu dibawah\n\nwith no background use --nobg`)
+                }
+            }
+
             if (/toimg/i.test(cmd)) {
                 if (isQuotedSticker) {
                     try {
-                        await client.presenceSubscribe(from)
-                        await client.sendPresenceUpdate('composing', from)
                         const media = await downloadMediaMessage(m.quoted)
                         await client.sendMessage(from, { image: media, jpegThumbnail: media }, { quoted: m })
                     } catch (error) {
@@ -726,6 +836,187 @@ const start = async () => {
                     }
                 } else {
                     await reply('reply a sticker')
+                }
+            }
+
+            if (isCmd && isGroupMsg) {
+                switch (cmd) {
+                    case 'linkgroup':
+                    case 'getlink':
+                    case 'grouplink':
+                    case 'linkgc':
+                        if (isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
+                        const inviteCode = await client.groupInviteCode(groupId)
+                        const _text = `Buka tautan ini untuk bergabung ke Grup Whatsapp saya https://chat.whatsapp.com/${inviteCode}`
+                        let thumb;
+                        try { thumb = await client.profilePictureUrl(from, 'image') } catch (e) { thumb = './src/logo.jpg' }
+                        const ms = await generateUrlInfo(from, _text, formattedTitle, 'Undangan Grup Whatsapp', thumb, m)
+                        await client.relayMessage(from, ms.message, { messageId: ms.key.id })
+                        break;
+                    case 'groupinfo':
+                        const _meta = await client.groupMetadata(groupId)
+                        let _img;
+                        try {
+                            _img = await client.profilePictureUrl(_meta.id)
+                        } catch (e) {
+                            _img = './src/logo.jpg'
+                        }
+                        const _btn = [
+                            { quickReplyButton: { displayText: `🔗 Group Link`, id: `${prefix}linkgroup` } },
+                        ]
+                        let caption = `${_meta.subject} - Created by @${_meta.owner.split('@')[0]} on ${moment(_meta.creation * 1000).format('ll')}\n\n` +
+                            `*${_meta.participants.length}* Total Members\n*${_meta.participants.filter(x => x.admin === 'admin').length}* Admin\n*${_meta.participants.filter(x => x.admin === null).length}* Not Admin\n\n` +
+                            `Group ID : ${_meta.id}`
+                        await client.sendMessage(from,
+                            {
+                                caption,
+                                footer,
+                                templateButtons: _btn,
+                                location: { jpegThumbnail: (await getBuffer(_img)).buffer, name: `${_meta.subject}`, address: 'Gimenz Network, Magelang', url: 'https://www.youtube.com/channel/UC0BwX6DYCWHKE4XEa5ZpWZw/videos' },
+                                headerType: 4,
+                                mentions: [_meta.owner]
+                            },
+                            { quoted: m }
+                        )
+                        break;
+                }
+            }
+
+            // Groups Moderation
+            if (isCmd && isGroupMsg) {
+                if (isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                if (isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
+                switch (cmd) {
+                    case '+':
+                    case 'add':
+                        if (args.length < 1) return reply(`example: ${prefix + cmd} 628xxx, +6285-2335-xxxx, 085236xxx`)
+                        try {
+                            let _participants = args.join(' ').split`,`.map(v => formatPhone(v.replace(/[^0-9]/g, '')))
+                            let users = (await Promise.all(
+                                _participants.filter(async x => {
+                                    (await client.onWhatsApp(x)).map(x => x.exists)
+                                }))
+                            )
+                            await client.groupParticipantsUpdate(groupId, users, 'add').then(res => console.log(res)).catch(e => console.log(e))
+                        } catch (error) {
+                            reply(util.format(error))
+                            console.log(error);
+                        }
+                        break;
+                    case '-':
+                    case 'kick':
+                        if (m.quoted) {
+                            const _user = m.quoted.sender;
+                            await client.groupParticipantsUpdate(groupId, [_user], 'remove')
+                        } else if (args.length >= 1 || m.mentionedJid.length >= 1) {
+                            let _participants = parseMention(args.join(' '))
+                            if (_participants.length < 1) return reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd} @user`)
+                            reply(`Kick/Remove *${_participants.length}* group members within delay 2 seconds to prevent banned`)
+                            for (let usr of _participants) {
+                                await delay(2000)
+                                await client.groupParticipantsUpdate(groupId, [usr], 'remove')
+                            }
+                        } else {
+                            reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd} @user`)
+                        }
+                        break;
+                    case 'pm':
+                    case 'upadmin':
+                    case '^':
+                    case 'promote':
+                        if (m.quoted) {
+                            const _user = m.quoted.sender;
+                            await client.groupParticipantsUpdate(groupId, [_user], 'promote')
+                        } else if (args.length >= 1 || m.mentionedJid.length >= 1) {
+                            let _participants = parseMention(body)
+                            if (_participants.length < 1) return reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd} @user`)
+                            reply(`Promoting *${_participants.length}* group members to be Group Admin within delay 3 seconds to prevent banned`)
+                            for (let usr of _participants) {
+                                await delay(3000)
+                                await client.groupParticipantsUpdate(groupId, [usr], 'promote')
+                            }
+                        } else {
+                            reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd} @user`)
+                        }
+                        break;
+                    case 'dm':
+                    case 'unadmin':
+                    case 'demote':
+                        if (m.quoted) {
+                            const _user = m.quoted.sender;
+                            await client.groupParticipantsUpdate(groupId, [_user], 'demote')
+                        } else if (args.length >= 1 || m.mentionedJid.length >= 1) {
+                            let _participants = parseMention(body)
+                            if (_participants.length < 1) return reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd} @user`)
+                            reply(`Demoting *${_participants.length}* group members to be Group Mmbers within delay 3 seconds to prevent banned`)
+                            for (let usr of _participants) {
+                                await delay(3000)
+                                await client.groupParticipantsUpdate(groupId, [usr], 'demote')
+                            }
+                        } else {
+                            reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd} @user`)
+                        }
+                        break;
+                    case 'inv':
+                    case 'rekrut':
+                        if (m.quoted) {
+                            const _user = m.quoted.sender;
+                            try {
+                                await client.groupParticipantsUpdate(groupId, [_user], 'add')
+                            } catch (error) {
+                                const inviteCode = await client.groupInviteCode(groupId)
+                                let thumb;
+                                try { thumb = await client.profilePictureUrl(from, 'image') } catch (e) { thumb = './src/logo.jpg' }
+                                await sendGroupV4Invite(groupId, _user, inviteCode, moment().add('3', 'days').unix(), false, thumb)
+                                reply('inviting...')
+                            }
+                        } else {
+                            reply(`reply pesan user yg mau di invite`)
+                        }
+                        break;
+                    case 'setdesc':
+                    case 'deskripsi':
+                    case 'desc':
+                    case 'updesc':
+                        if (args.length < 1) return reply(`Mengubah deskripsi group, example: ${prefix + cmd} ssstt... dilarang mengontol wkwkwk!`)
+                        const _desc = args.join(' ')
+                        await client.groupUpdateDescription(groupId, _desc)
+                        break;
+                    case 'uptitle':
+                    case 'settitle':
+                    case 'gname':
+                    case 'upgname':
+                    case 'cgname':
+                        if (args.length < 1) return reply(`Mengubah deskripsi group, example: ${prefix + cmd} ${package.name}`)
+                        const _title = args.join(' ')
+                        const _before = (await client.groupMetadata(groupId)).subject
+                        await client.groupUpdateSubject(groupId, _title)
+                        reply(`Berhasil mengubah nama group.\n\nBefore : ${_before}\nAfter : ${args.join(' ')}`)
+                        break;
+                    case 'lock':
+                    case 'tutup':
+                    case 'close':
+                        await client.groupSettingUpdate(groupId, 'announcement')
+                        reply('success')
+                        break;
+                    case 'unlock':
+                    case 'buka':
+                    case 'open':
+                        await client.groupSettingUpdate(groupId, 'not_announcement')
+                        reply('success')
+                        break;
+                    case 'setpicture':
+                    case 'setimage':
+                        if (isMedia || isQuotedImage) {
+                            const message = isQuotedImage ? m.quoted : m
+                            const buffer = await downloadMediaMessage(message)
+                            await client.updateProfilePicture(groupId, buffer)
+                        } else if (isUrl(url)) {
+                            await client.updateProfilePicture(groupId, { url })
+                        } else {
+                            reply(`send/reply image, or you can use url that containing image`)
+                        }
+                        break;
                 }
             }
 
@@ -787,10 +1078,6 @@ const start = async () => {
             unlink ? fs.unlinkSync(unlink) : ''
             client.sendMessage(jid, { text: `error nganu => ${util.format(error)} ` }, { quoted })
         }
-
-        // let content = mime == 'video' ? { video: data.buffer, caption: text, ...options } : mime == 'image' ? { image: data.buffer, caption: text, contextInfo: { mentionedJid: [...text.matchAll(/@(\d{0,16})/g)].map(v => v[1] + '@s.whatsapp.net') }, ...options } : mime == 'audio' ? { audio: data.buffer, ptt: voice, ...options } : {}
-        // client.sendMessage(jid, content, { quoted })    
-        // await client.relayWAMessage(waMessage)
     }
     global.sendFileFromUrl;
 
@@ -814,7 +1101,7 @@ const start = async () => {
      * @param {Object} options 
      * @returns 
      */
-    async function sendListM(jid, button, rows, quoted, options) {
+    async function sendListM(jid, button, rows, quoted, options = {}) {
         await client.sendPresenceUpdate('composing', jid)
         let messageList = WAProto.Message.fromObject({
             listMessage: WAProto.ListMessage.fromObject({
@@ -831,6 +1118,32 @@ const start = async () => {
         })
         let waMessageList = generateWAMessageFromContent(jid, messageList, { quoted, userJid: jid, contextInfo: { ...options } })
         return await client.relayMessage(jid, waMessageList.message, { messageId: waMessageList.key.id })
+    }
+
+    /**
+     * send group invitation via message
+     * @param {string} jid gorupJid 
+     * @param {string} participant this message sent to?
+     * @param {string} inviteCode group invite code
+     * @param {Number} inviteExpiration invite expiration
+     * @param {string} groupName group name
+     * @param {string} jpegThumbnail file path or url
+     * @param {string} caption message caption
+     * @param {any} options message options
+     */
+    async function sendGroupV4Invite(jid, participant, inviteCode, inviteExpiration, groupName = 'unknown subject', jpegThumbnail, caption = 'Invitation to join my WhatsApp group', options = {}) {
+        let msg = WAProto.Message.fromObject({
+            groupInviteMessage: WAProto.GroupInviteMessage.fromObject({
+                inviteCode,
+                inviteExpiration: inviteExpiration ? parseInt(inviteExpiration) : + new Date(new Date + (3 * 86400000)),
+                groupJid: jid,
+                groupName: groupName ? groupName : (await client.groupMetadata(jid)).subject,
+                jpegThumbnail: jpegThumbnail ? (await getBuffer(jpegThumbnail)).buffer : '',
+                caption
+            })
+        })
+        const m = generateWAMessageFromContent(participant, msg, options)
+        await client.relayMessage(participant, m.message, { messageId: m.key.id })
     }
 
     /**
@@ -866,18 +1179,6 @@ const start = async () => {
     }
 
     client.downloadMediaMessage = downloadMediaMessage
-    /**
-     * 
-     * @param {any} message 
-     * @returns 
-     */
-    async function downloadMediaMessage(message) {
-        let mimes = (message.msg || message).mimetype || ''
-        let messageType = mimes.split('/')[0].replace('application', 'document') ? mimes.split('/')[0].replace('application', 'document') : mimes.split('/')[0]
-        let extension = mimes.split('/')[1]
-        const stream = await downloadContentFromMessage(message, messageType)
-        return await toBuffer(stream)
-    }
 };
 
 start();

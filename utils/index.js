@@ -9,14 +9,17 @@
  * Please respect me for making this tool from the beginning.
  */
 
-const { S_WHATSAPP_NET, URL_REGEX } = require('@adiwajshing/baileys-md');
+const { S_WHATSAPP_NET, URL_REGEX } = require('@adiwajshing/baileys');
 const { randomBytes } = require('crypto');
 const fs = require('fs')
 const chalk = require('chalk');
 global.moment = require('moment-timezone');
 const mime = require('mime-types');
 moment.tz.setDefault('Asia/Jakarta').locale('id');
-global.axios = require('axios').default;
+const FormData = require('form-data')
+const { default: axios, AxiosRequestConfig } = require('axios');
+const { fromBuffer } = require('file-type');
+global.axios = axios
 global.config = require('../src/config.json')
 global.API = config.api
 global.db = []
@@ -79,8 +82,8 @@ const msgs = (message) => {
 /**
  * @internal
  * A convinience method to download the [[DataURL]] of a file
- * @param input The url or path
- * @param optionsOverride You can use this to override the [axios request config](https://github.com/axios/axios#request-config)
+ * @param {string}input The url or path
+ * @param {AxiosRequestConfig} optionsOverride You can use this to override the [axios request config](https://github.com/axios/axios#request-config)
  * @returns
  */
 async function getBuffer(input, optionsOverride = {}) {
@@ -144,13 +147,19 @@ function humanFileSize(bytes, si = true, dp = 1) {
  * 
  * @param {string} api 
  * @param {string} params 
- * @param {Object} options 
- * @returns 
+ * @param {AxiosRequestConfig} options 
+ * @returns
  */
 async function fetchAPI(api, params, options = {}) {
 	try {
-		const { data } = await axios.get(global.API[api] + params, { ...options });
-		return data;
+		const res = await axios({
+			url: (global.API[api] || api) + params,
+			method: options.method || 'GET',
+			data: options.data,
+			...options
+		})
+		//const { data } = await axios.get(global.API[api] || api + params, { ...options });
+		return res.data;
 	} catch (error) {
 		throw new Error(error);
 	}
@@ -163,7 +172,7 @@ const formatPhone = function (number) {
 	} else if (formatted.startsWith('62')) {
 		formatted = formatted.substr(2) + S_WHATSAPP_NET;
 	}
-	return number.endsWith(S_WHATSAPP_NET) ? number : formatted;
+	return number.endsWith(S_WHATSAPP_NET) ? number : '62' + formatted;
 }
 
 function shrt(url, ...args) {
@@ -189,6 +198,35 @@ function secondsConvert(seconds, hour = false) {
 	return res.map(format).join(':')
 }
 
+function randRGB() {
+	const randomBetween = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+	return {
+		r: randomBetween(0, 255),
+		g: randomBetween(0, 255),
+		b: randomBetween(0, 255),
+		a: randomBetween(0, 255)
+	}
+}
+
+/**
+ * upload Image to telegra.ph
+ * @param {Buffer|string} buffer Buffer or filepath
+ * @returns 
+ */
+const uploadImage = async (buffer) => {
+	buffer = Buffer.isBuffer(buffer) ? buffer : fs.existsSync(buffer) ? fs.readFileSync(buffer) : buffer
+	const { ext } = await fromBuffer(buffer);
+	const form = new FormData()
+	form.append('file', buffer, 'tmp.' + ext);
+	const res = await axios.post('https://telegra.ph/upload', form, {
+		headers: form.getHeaders()
+	})
+	const img = await res.data
+	if (img.error) throw img.error
+	return 'https://telegra.ph' + img[0].src
+}
+
+
 module.exports = {
 	processTime,
 	isUrl,
@@ -200,5 +238,7 @@ module.exports = {
 	fetchAPI,
 	formatPhone,
 	shrt,
-	secondsConvert
+	secondsConvert,
+	randRGB,
+	uploadImage
 };

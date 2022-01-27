@@ -1,9 +1,11 @@
 view
+db/*
 node_modules
 package-lock.json
 jajal_ffmpeg.js
 mask.png
 my-session.json
 srv.js
+img.js
 tes.js
 test-session.json

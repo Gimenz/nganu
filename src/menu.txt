@@ -13,15 +13,32 @@ simbol *<>* berarti argumen wajib di isi
 simbol *()* berarti argumen tidak wajib/opsional
 simbol *|* bermakna _atau_ */* 
 
-*CMD*
+*🖼 | 🎧*
 *├* prefix ytmp3 <url> (--metadata | --vn)
 *├* prefix ytmp4 <url>
 *├* prefix play <judul lagu>
 *├* prefix music <judul lagu>
-*├* prefix sticker <reply/send> image | video | url
+*├* prefix sticker <reply/send> (--circle | --rounded | --nobg | --help)
+*├* prefix rotate <reply/send> image | sticker <degree>
+*├* prefix flip|flop <reply/send> image | sticker
+*├* prefix memesticker <reply/send> image <top|bottom> (--nobg)
 *├* prefix tomp3 <reply/send> video
 *├* prefix 8d <reply/send> video 
 *├* prefix extract <reply a sticker> -> extract sticker exif
 *└* prefix toimg <reply a sticker>
+
+*Group Moderation | CMD*
+*├* prefix add|+ <+62xxx, 08xxx, +62 xx xx xx, +62-xx-xx-xx>
+*├* prefix kick|- <reply/mention>
+*├* prefix demote|dm|unadmin <reply/mention>
+*├* prefix promote|pm|^ <reply/mention>
+*├* prefix inv <reply msg>
+*├* prefix open
+*├* prefix close
+*├* prefix getlink
+*├* prefix groupinfo
+*├* prefix setpicture <reply/send image> | url
+*├* prefix settitle <nama group>
+*└* prefix setdesc <deskripsi>
 
 *Note :* Jika menemukan bug, atau terdapat fitur bot yang error. jangan sungkan lapor ke owner agar segera diperbaiki.
