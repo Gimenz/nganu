@@ -1,5 +1,6 @@
 view
 db/*
+temp
 node_modules
 package-lock.json
 jajal_ffmpeg.js

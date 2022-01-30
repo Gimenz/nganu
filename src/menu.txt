@@ -14,6 +14,7 @@ simbol *()* berarti argumen tidak wajib/opsional
 simbol *|* bermakna _atau_ */* 
 
 *🖼 | 🎧*
+*├* prefix short <url>
 *├* prefix ytmp3 <url> (--metadata | --vn)
 *├* prefix ytmp4 <url>
 *├* prefix play <judul lagu>
@@ -21,6 +22,7 @@ simbol *|* bermakna _atau_ */*
 *├* prefix sticker <reply/send> (--circle | --rounded | --nobg | --help)
 *├* prefix rotate <reply/send> image | sticker <degree>
 *├* prefix flip|flop <reply/send> image | sticker
+*├* prefix removebg <reply/send> image (--doc)
 *├* prefix memesticker <reply/send> image <top|bottom> (--nobg)
 *├* prefix tomp3 <reply/send> video
 *├* prefix 8d <reply/send> video 

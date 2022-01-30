@@ -2,7 +2,7 @@
  * Author  : Gimenz
  * Name    : nganu
  * Version : 1.0
- * Update  : 12 Januari 2022
+ * Update  : 27 Januari 2022
  * 
  * If you are a reliable programmer or the best developer, please don't change anything.
  * If you want to be appreciated by others, then don't change anything in this script.
@@ -12,6 +12,7 @@
 const { S_WHATSAPP_NET, URL_REGEX } = require('@adiwajshing/baileys');
 const { randomBytes } = require('crypto');
 const fs = require('fs')
+const path = require('path')
 const chalk = require('chalk');
 global.moment = require('moment-timezone');
 const mime = require('mime-types');
@@ -226,6 +227,25 @@ const uploadImage = async (buffer) => {
 	return 'https://telegra.ph' + img[0].src
 }
 
+/**
+ * is tiktok video url?
+ * @param {string} link 
+ * @returns 
+ */
+async function isTiktokVideo(link) {
+	const a = await axios.get(link)
+	let url = new URL(a.request.res.responseUrl)
+	return {
+		isVideo: !isNaN(path.basename(url.pathname)),
+		isUser: path.basename(url.pathname).startsWith('@'),
+		url: url.origin + url.pathname,
+		pathname: url.pathname
+	}
+}
+
+function formatK(number, locale = 'id-ID') {
+	return new Intl.NumberFormat(locale, { notation: 'compact' }).format(number)
+}
 
 module.exports = {
 	processTime,
@@ -240,5 +260,7 @@ module.exports = {
 	shrt,
 	secondsConvert,
 	randRGB,
-	uploadImage
+	uploadImage,
+	isTiktokVideo,
+	formatK
 };

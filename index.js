@@ -35,7 +35,8 @@ const {
     makeInMemoryStore,
     unixTimestampSeconds,
     WAFlag,
-    isJidUser
+    isJidUser,
+    generateForwardMessageContent
 } = require('@adiwajshing/baileys');
 const pino = require('pino');
 const CFonts = require('cfonts');
@@ -51,6 +52,8 @@ global.owner = config.owner
 global.footer = `${package.name} ~ Multi Device [BETA]`
 let { igApi, shortcodeFormatter, isIgPostUrl } = require('insta-fetcher');
 let ig = new igApi(process.env.session_id)
+const { SID } = require('sid-api')
+const sID = new SID(process.env.sid_email, process.env.sid_password);
 let session;
 if (opts['server']) require('./server')
 if (opts['test']) {
@@ -84,6 +87,8 @@ const {
     secondsConvert,
     formatPhone,
     uploadImage,
+    isTiktokVideo,
+    formatK,
 } = require('./utils');
 const { Sticker, cropStyle } = require('./utils/sticker')
 const { Serialize, generateUrlInfo, downloadMediaMessage } = require('./lib/simple');
@@ -299,25 +304,42 @@ const start = async () => {
                     url = body.match(/https:\/\/.+\.tiktok.+/g)[0]
                     logEvent(url)
                     await typing(from)
-                    const data = await fetchAPI('masgi', '/tiktok/?url=' + url)
-                    let { author, video, desc, music } = data.aweme_details[0]
                     await waiting(from, m)
-                    let caption = `*Success* - ${'Video from https://www.tiktok.com/@' + author.unique_id || ''} [${desc}]`
-                    let idMp3 = shrt(music.play_url.uri, { title: `${music.title}` })
-                    let idVideo = shrt(video.play_addr.url_list[1], { title: `original sound - ${author.unique_id}` })
-                    const btnCover = [
-                        { quickReplyButton: { displayText: `Original Sound`, id: `${prefix}sendtaudio ${idMp3.id}` } },
-                        { quickReplyButton: { displayText: `Extract Audio`, id: `${prefix}tomp3 ${idVideo.id}` } },
-                    ]
-                    let buttonMessage = {
-                        caption,
-                        footer,
-                        templateButtons: btnCover,
-                        height: video.play_addr.height,
-                        width: video.play_addr.width,
-                        video: { url: video.play_addr.url_list[1] }
+                    const check = await isTiktokVideo(url)
+                    if (!check.isVideoUrl || check.isUser) {
+                        const { result } = await fetchAPI('masgi', '/tiktok/user.php?u=' + check.pathname.split('@')[1])
+                        const caption = `*TikTok Profile*\n\n` +
+                            `➤ *Username :* @${result.user.uniqueId}\n` +
+                            `➤ *Nickname :* ${result.user.nickname}\n` +
+                            `➤ *Private :* ${result.user.privateAccount ? '✅' : '❌'}\n` +
+                            `➤ *Followers :* ${formatK(result.stats.followerCount)}\n` +
+                            `➤ *Following :* ${formatK(result.stats.followingCount)}\n` +
+                            `➤ *Total Hearts :* ${formatK(result.stats.heartCount)}\n` +
+                            `➤ *Total Videos :* ${formatK(result.stats.videoCount)}\n` +
+                            `➤ *Created on :* ${moment(result.user.createTime * 1000).format('DD/MM/YY HH:mm:ss')}\n` +
+                            `➤ *Bio :* ${result.user.signature}`
+                        await sendFileFromUrl(from, result.user.avatarLarger, caption, m)
+                    } else {
+                        const data = await fetchAPI('masgi', '/tiktok/?url=' + url)
+                        let { author, video, desc, music } = data.aweme_details[0]
+                        let caption = `*Success* - ${'Video from https://www.tiktok.com/@' + author.unique_id || ''} [${desc}]`
+                        let idMp3 = shrt(music.play_url.uri, { title: `${music.title}` })
+                        let idVideo = shrt(video.play_addr.url_list[1], { title: `original sound - ${author.unique_id}` })
+                        const btnCover = [
+                            { quickReplyButton: { displayText: `Original Sound`, id: `${prefix}sendtaudio ${idMp3.id}` } },
+                            { quickReplyButton: { displayText: `Extract Audio`, id: `${prefix}tomp3 ${idVideo.id}` } },
+                            { urlButton: { displayText: `⏬ Download in Browser`, url: `https://s.id/${(await sID.short(idVideo.url)).link.short}` } },
+                        ]
+                        let buttonMessage = {
+                            caption,
+                            footer,
+                            templateButtons: btnCover,
+                            height: video.play_addr.height,
+                            width: video.play_addr.width,
+                            video: { url: video.play_addr.url_list[1] }
+                        }
+                        await client.sendMessage(from, buttonMessage, { quoted: m })
                     }
-                    await client.sendMessage(from, buttonMessage, { quoted: m })
                 } catch (error) {
                     console.log(error);
                     await reply('an error occurred')
@@ -549,32 +571,30 @@ const start = async () => {
             }
 
             // CMD 
+            if (cmd == 'short' || cmd == 'shorten' || cmd == 'pendekin') {
+                if (!isUrl(url)) return reply('bukan url')
+                const { link } = await sID.short(url);
+                reply(`shorted: https://s.id/${link.short}`)
+            }
+
             if (cmd == 'bc' && isOwner) {
                 try {
                     if (args.length < 1) return reply('text nya mana?')
-                    let mediaType = m.quoted ? m.quoted.mtype : m.mtype
-                    if (isMedia || /image|video/i.test(mediaType)) {
-                        const buff = await downloadMediaMessage(m.quoted ? m.quoted : m)
-                        reply(`sending broadcast message to *${chatsJid.length}* chats, estimated ${Math.floor((5 * chatsJid.length) / 60)} minutes done.`)
+                    reply(`sending broadcast message to *${chatsJid.length}* chats, estimated ${Math.floor((5 * chatsJid.length) / 60)} minutes done.`)
+                    if (isMedia || /image|video/i.test(m.quoted ? m.quoted.mtype : m.mtype)) {
+                        //const buff = await downloadMediaMessage(m.quoted ? m.quoted : m.message.imageMessage)
                         for (let v of chatsJid) {
                             await delay(5000)
-                            let media = {
-                                caption: `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n*#${chatsJid.indexOf(v) + 1}*`
-                            };
-                            /image|video/i.test(mediaType)
-                                ? media['image'] = buff
-                                : media['video'] = buff
-
-                            await client.sendMessage(v, media)
+                            let ms = m.quoted ? m.getQuotedObj() : m
+                            await copyNForward(v, cMod(v, ms, `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n#${chatsJid.indexOf(v) + 1}`, client.user.id), true)
                         }
-                        reply(`Broadcasted to *${chatsJid.length}*`)
+                        reply(`Broadcasted to *${chatsJid.length}* chats`)
                     } else {
-                        reply(`sending broadcast message to *${chatsJid.length}* chats, estimated ${Math.floor((5 * chatsJid.length) / 60)} minutes done`)
                         for (let v of chatsJid) {
                             await delay(5000)
-                            await client.sendMessage(v, { text: `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n*#${chatsJid.indexOf(v) + 1}*` }, { sendEphemeral: true })
+                            await client.sendMessage(v, { text: `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n#${chatsJid.indexOf(v) + 1}` }, { sendEphemeral: true })
                         }
-                        reply(`Broadcasted to *${chatsJid.length}*`)
+                        reply(`Broadcasted to *${chatsJid.length}* chats`)
                     }
                 } catch (error) {
                     reply(util.format(error))
@@ -805,6 +825,29 @@ const start = async () => {
                     }
                 } else {
                     reply(`send/reply image. example :\n${prefix + cmd} aku diatas | kamu dibawah\n\nwith no background use --nobg`)
+                }
+            }
+
+            if (cmd == 'removebg' || cmd == 'nobg' || cmd == 'rmbg') {
+                try {
+                    if (isMedia || isQuotedImage || m.quoted.mtype == 'documentMessage') {
+                        //const mediaData = await downloadMediaMessage(m.quoted ? m.quoted : m)
+                        const removed = await Sticker.removeBG(m.quoted ? await m.quoted.download() : await m.download());
+                        if (flags.find(v => v.match(/((doc)|ument)|file/))) {
+                            await client.sendMessage(from, { document: removed, fileName: sender.split('@')[0] + 'removed.png', mimetype: 'image/png', jpegThumbnail: removed }, { quoted: m })
+                        } else {
+                            await client.sendMessage(from, { image: removed, mimetype: 'image/png', caption: 'removed' }, { quoted: m })
+                        }
+                    } else if (isQuotedSticker) {
+                        const removed = await Sticker.removeBG(await m.quoted.download())
+                        const data = new Sticker(removed, { packname: package.name, author: package.author })
+                        await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                    } else {
+                        reply(`send/reply image. example :\n${prefix + cmd}\n\ndocument result use --doc`)
+                    }
+                } catch (error) {
+                    console.log(error);
+                    reply('aww snap. error occurred')
                 }
             }
 
@@ -1047,30 +1090,30 @@ const start = async () => {
             if (mimetype == 'image/gif' || options.gif) {
                 await client.sendPresenceUpdate('composing', jid)
                 const message = await prepareWAMessageMedia({ video: { url: filepath }, caption, gifPlayback: true, gifAttribution: 1, mentions: mentionedJid, jpegThumbnail: thumb, ...options }, { upload: client.waUploadToServer })
-                let media = generateWAMessageFromContent(jid, { videoMessage: message.videoMessage }, { quoted })
+                let media = generateWAMessageFromContent(jid, { videoMessage: message.videoMessage }, { quoted, mediaUploadTimeoutMs: 600000 })
                 await client.relayMessage(jid, media.message, { messageId: media.key.id })
                 //await client.sendMessage(jid, { video: buffer, caption, gifPlayback: true, mentions: mentionedJid, jpegThumbnail: thumb, ...options }, { quoted })
             } else if (mime == 'video') {
                 await client.sendPresenceUpdate('composing', jid)
                 client.refreshMediaConn(false)
                 const message = await prepareWAMessageMedia({ video: { url: filepath }, caption, mentions: mentionedJid, jpegThumbnail: thumb, ...options }, { upload: client.waUploadToServer })
-                let media = generateWAMessageFromContent(jid, { videoMessage: message.videoMessage }, { quoted })
+                let media = generateWAMessageFromContent(jid, { videoMessage: message.videoMessage }, { quoted, mediaUploadTimeoutMs: 600000 })
                 await client.relayMessage(jid, media.message, { messageId: media.key.id })
             } else if (mime == 'image') {
                 await client.sendPresenceUpdate('composing', jid)
                 const message = await prepareWAMessageMedia({ image: { url: filepath }, caption, mentions: mentionedJid, jpegThumbnail: thumb, ...options }, { upload: client.waUploadToServer })
-                let media = generateWAMessageFromContent(jid, { imageMessage: message.imageMessage }, { quoted })
+                let media = generateWAMessageFromContent(jid, { imageMessage: message.imageMessage }, { quoted, mediaUploadTimeoutMs: 600000 })
                 await client.relayMessage(jid, media.message, { messageId: media.key.id })
             } else if (mime == 'audio') {
                 await client.sendPresenceUpdate('recording', jid)
                 const message = await prepareWAMessageMedia({ document: { url: filepath }, mimetype: mimetype, fileName: options.fileName }, { upload: client.waUploadToServer })
-                let media = generateWAMessageFromContent(jid, { documentMessage: message.documentMessage }, { quoted })
+                let media = generateWAMessageFromContent(jid, { documentMessage: message.documentMessage }, { quoted, mediaUploadTimeoutMs: 600000 })
                 await client.relayMessage(jid, media.message, { messageId: media.key.id })
             } else {
                 await client.sendPresenceUpdate('composing', jid)
                 client.refreshMediaConn(false)
                 const message = await prepareWAMessageMedia({ document: { url: filepath }, mimetype: mimetype, fileName: options.fileName }, { upload: client.waUploadToServer, })
-                let media = generateWAMessageFromContent(jid, { documentMessage: message.documentMessage }, { quoted })
+                let media = generateWAMessageFromContent(jid, { documentMessage: message.documentMessage }, { quoted, mediaUploadTimeoutMs: 600000 })
                 await client.relayMessage(jid, media.message, { messageId: media.key.id })
             }
             fs.unlinkSync(filepath)
@@ -1113,7 +1156,8 @@ const start = async () => {
                         title: button.title,
                         rows: [...rows]
                     }
-                ]
+                ],
+                ...options
             })
         })
         let waMessageList = generateWAMessageFromContent(jid, messageList, { quoted, userJid: jid, contextInfo: { ...options } })
@@ -1177,8 +1221,87 @@ const start = async () => {
                 }
             })
     }
+    /**
+     * 
+     * @param {string} jid 
+     * @param {proto.WebMessageInfo} message 
+     * @param {boolean} forceForward 
+     * @param {any} options 
+     * @returns 
+     */
+    async function copyNForward(jid, message, forceForward = false, options = {}) {
+        let vtype
+        if (options.readViewOnce) {
+            message.message = message.message && message.message.ephemeralMessage && message.message.ephemeralMessage.message ? message.message.ephemeralMessage.message : (message.message || undefined)
+            vtype = Object.keys(message.message.viewOnceMessage.message)[0]
+            delete (message.message && message.message.ignore ? message.message.ignore : (message.message || undefined))
+            delete message.message.viewOnceMessage.message[vtype].viewOnce
+            message.message = {
+                ...message.message.viewOnceMessage.message
+            }
+        }
+
+        let mtype = Object.keys(message.message)[0]
+        let content = generateForwardMessageContent(message, forceForward)
+        let ctype = Object.keys(content)[0]
+        let context = {}
+        if (mtype != "conversation") context = message.message[mtype].contextInfo
+        content[ctype].contextInfo = {
+            ...context,
+            ...content[ctype].contextInfo
+        }
+        const waMessage = generateWAMessageFromContent(jid, content, options ? {
+            ...content[ctype],
+            ...options,
+            ...(options.contextInfo ? {
+                contextInfo: {
+                    ...content[ctype].contextInfo,
+                    ...options.contextInfo
+                }
+            } : {})
+        } : {})
+        await client.relayMessage(jid, waMessage.message, { messageId: waMessage.key.id })
+        return waMessage
+    }
+
+    /**
+     * 
+     * @param {string} jid 
+     * @param {proto.WebMessageInfo} copy 
+     * @param {string} text 
+     * @param {string} sender 
+     * @param {*} options 
+     * @returns 
+     */
+    function cMod(jid, copy, text = '', sender = client.user.id, options = {}) {
+        //let copy = message.toJSON()
+        let mtype = Object.keys(copy.message)[0]
+        let isEphemeral = mtype === 'ephemeralMessage'
+        if (isEphemeral) {
+            mtype = Object.keys(copy.message.ephemeralMessage.message)[0]
+        }
+        let msg = isEphemeral ? copy.message.ephemeralMessage.message : copy.message
+        let content = msg[mtype]
+        if (typeof content === 'string') msg[mtype] = text || content
+        else if (text || content.caption) content.caption = text || content.caption
+        else if (content.text) content.text = text || content.text
+        if (typeof content !== 'string') msg[mtype] = {
+            ...content,
+            ...options
+        }
+        if (copy.key.participant) sender = copy.key.participant = sender || copy.key.participant
+        else if (copy.key.participant) sender = copy.key.participant = sender || copy.key.participant
+        if (copy.key.remoteJid.includes('@s.whatsapp.net')) sender = sender || copy.key.remoteJid
+        else if (copy.key.remoteJid.includes('@broadcast')) sender = sender || copy.key.remoteJid
+        copy.key.remoteJid = jid
+        copy.key.fromMe = sender === client.user.id
+
+        return proto.WebMessageInfo.fromObject(copy)
+    }
 
     client.downloadMediaMessage = downloadMediaMessage
+    global.cMod = client.cMod = cMod
+    global.copyNForward = client.copyNForward = copyNForward
 };
 
 start();
