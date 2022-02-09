@@ -36,8 +36,10 @@ const {
     unixTimestampSeconds,
     WAFlag,
     isJidUser,
-    generateForwardMessageContent
+    generateForwardMessageContent,
+    jidNormalizedUser
 } = require('@adiwajshing/baileys');
+const _ = require('lodash')
 const pino = require('pino');
 const CFonts = require('cfonts');
 const gradient = require('gradient-string');
@@ -104,6 +106,7 @@ if (!fs.existsSync('./db/chatsJid.json')) {
     fs.writeFileSync('./db/chatsJid.json', JSON.stringify([]), 'utf-8')
 }
 let chatsJid = JSON.parse(fs.readFileSync('./db/chatsJid.json', 'utf-8'))
+const shortenerAuth = process.env.sid_email !== '' && process.env.sid_password !== ''
 
 const start = async () => {
     CFonts.say(`${package.name}`, {
@@ -138,7 +141,7 @@ const start = async () => {
             console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`${package.name} is Authenticating...`, '#f12711'));
         } else if (connection === 'close') {
             const log = msg => console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(msg, '#f64f59'));
-            const { statusCode } = lastDisconnect.error?.output;
+            const { statusCode } = lastDisconnect.error ? lastDisconnect.error?.output : 0;
 
             if (statusCode === DisconnectReason.badSession) { log(`Bad session file, delete ${session} and run again`); process.exit(); }
             else if (statusCode === DisconnectReason.connectionClosed) { log('Connection closed, reconnecting....'); start() }
@@ -186,14 +189,11 @@ const start = async () => {
             let pushname = m.pushName
             const botNumber = client.user.id
             const groupId = isGroupMsg ? from : ''
-            const groupMetadata = isGroupMsg ? await client.groupMetadata(groupId) : {}
-            const groupMembers = isGroupMsg ? groupMetadata.participants : []
-            const groupAdmins = []
-            for (let i of groupMembers) {
-                i.isAdmin ? groupAdmins.push(i.jid) : ''
-            }
-            const isGroupAdmin = groupAdmins.includes(sender)
-            const isBotGroupAdmin = groupAdmins.includes(botNumber)
+            let groupMetadata = isGroupMsg ? await client.groupMetadata(groupId) : {}
+            let groupMembers = isGroupMsg ? groupMetadata.participants : []
+            let groupAdmins = groupMembers.filter(v => v.admin !== null).map(x => x.id)
+            let isGroupAdmin = groupAdmins.includes(sender)
+            let isBotGroupAdmin = groupAdmins.includes(jidNormalizedUser(botNumber))
 
             let formattedTitle = isGroupMsg ? groupMetadata.subject : ''
             global.prefix = /^[./~!#%^&=\,;:()]/.test(body) ? body.match(/^[./~!#%^&=\,;:()]/gi) : '#'
@@ -328,7 +328,7 @@ const start = async () => {
                         const btnCover = [
                             { quickReplyButton: { displayText: `Original Sound`, id: `${prefix}sendtaudio ${idMp3.id}` } },
                             { quickReplyButton: { displayText: `Extract Audio`, id: `${prefix}tomp3 ${idVideo.id}` } },
-                            { urlButton: { displayText: `⏬ Download in Browser`, url: `https://s.id/${(await sID.short(idVideo.url)).link.short}` } },
+                            { urlButton: { displayText: `⏬ Download in Browser`, url: `${shortenerAuth ? 'https://s.id/' + (await sID.short(idVideo.url)).link.short : idVideo.url}` } }
                         ]
                         let buttonMessage = {
                             caption,
@@ -572,6 +572,7 @@ const start = async () => {
 
             // CMD 
             if (cmd == 'short' || cmd == 'shorten' || cmd == 'pendekin') {
+                if (!shortenerAuth) return reply('shortener auth didn\'t set yet')
                 if (!isUrl(url)) return reply('bukan url')
                 const { link } = await sID.short(url);
                 reply(`shorted: https://s.id/${link.short}`)
@@ -824,7 +825,33 @@ const start = async () => {
                         reply('aww snap. error occurred')
                     }
                 } else {
-                    reply(`send/reply image. example :\n${prefix + cmd} aku diatas | kamu dibawah\n\nwith no background use --nobg`)
+                    reply(`${isQuotedSticker ? 'you\'re replied a sticker message, please ' : ''}send/reply image. example :\n${prefix + cmd} aku diatas | kamu dibawah\n\nwith no background use --nobg`)
+                }
+            }
+
+            if (cmd == 'emojimix' || cmd == 'mix' || cmd == 'mixit') {
+                try {
+                    const kitchen = require('./lib/emojikitchen')
+                    if (flags.find(v => v.match(/shuffle|random/))) {
+                        const emoji = kitchen.shuffle()
+                        const res = await kitchen.mix(emoji[0], emoji[1])
+                        const data = new Sticker(_.sample(res.results).url, { packname: package.name, author: package.author })
+                        await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                    } else {
+                        const parsed = kitchen.parseEmoji(body)
+                        if (parsed.length < 1) return reply('emoji not supported, try another one.\n\nDo Note! that not all emojis are supported yet')
+                        const res = await kitchen.mix(parsed.length == 1 ? parsed[0] : parsed[0], parsed[1])
+                        const img = _.sample(res.results).url
+                        if (flags.find(v => v.match(/image|img|i/))) {
+                            await sendFileFromUrl(from, img, `success ${shortenerAuth ? `https://s.id/${(await sID.short(img)).link.short}` : ''}`)
+                        } else {
+                            const data = new Sticker(img, { packname: package.name, author: package.author })
+                            await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                        }
+                    }
+                } catch (err) {
+                    console.log(err);
+                    reply('emoji not supported, try another one.\n\nDo Note! that not all emojis are supported')
                 }
             }
 
@@ -882,56 +909,44 @@ const start = async () => {
                 }
             }
 
+
+            // Groups Moderation
             if (isCmd && isGroupMsg) {
                 switch (cmd) {
                     case 'linkgroup':
                     case 'getlink':
                     case 'grouplink':
-                    case 'linkgc':
-                        if (isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
+                    case 'linkgc': {
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         const inviteCode = await client.groupInviteCode(groupId)
                         const _text = `Buka tautan ini untuk bergabung ke Grup Whatsapp saya https://chat.whatsapp.com/${inviteCode}`
                         let thumb;
                         try { thumb = await client.profilePictureUrl(from, 'image') } catch (e) { thumb = './src/logo.jpg' }
                         const ms = await generateUrlInfo(from, _text, formattedTitle, 'Undangan Grup Whatsapp', thumb, m)
                         await client.relayMessage(from, ms.message, { messageId: ms.key.id })
+                    }
                         break;
                     case 'groupinfo':
                         const _meta = await client.groupMetadata(groupId)
                         let _img;
-                        try {
-                            _img = await client.profilePictureUrl(_meta.id)
-                        } catch (e) {
-                            _img = './src/logo.jpg'
-                        }
-                        const _btn = [
-                            { quickReplyButton: { displayText: `🔗 Group Link`, id: `${prefix}linkgroup` } },
-                        ]
+                        try { _img = await client.profilePictureUrl(_meta.id, 'image') } catch (e) { _img = './src/logo.jpg' }
                         let caption = `${_meta.subject} - Created by @${_meta.owner.split('@')[0]} on ${moment(_meta.creation * 1000).format('ll')}\n\n` +
                             `*${_meta.participants.length}* Total Members\n*${_meta.participants.filter(x => x.admin === 'admin').length}* Admin\n*${_meta.participants.filter(x => x.admin === null).length}* Not Admin\n\n` +
                             `Group ID : ${_meta.id}`
                         await client.sendMessage(from,
                             {
                                 caption,
-                                footer,
-                                templateButtons: _btn,
-                                location: { jpegThumbnail: (await getBuffer(_img)).buffer, name: `${_meta.subject}`, address: 'Gimenz Network, Magelang', url: 'https://www.youtube.com/channel/UC0BwX6DYCWHKE4XEa5ZpWZw/videos' },
-                                headerType: 4,
+                                image: (await getBuffer(_img)).buffer,
+                                jpegThumbnail: (await getBuffer('./src/logo.jpg')).buffer,
                                 mentions: [_meta.owner]
                             },
                             { quoted: m }
                         )
                         break;
-                }
-            }
-
-            // Groups Moderation
-            if (isCmd && isGroupMsg) {
-                if (isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
-                if (isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
-                switch (cmd) {
                     case '+':
                     case 'add':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         if (args.length < 1) return reply(`example: ${prefix + cmd} 628xxx, +6285-2335-xxxx, 085236xxx`)
                         try {
                             let _participants = args.join(' ').split`,`.map(v => formatPhone(v.replace(/[^0-9]/g, '')))
@@ -948,6 +963,8 @@ const start = async () => {
                         break;
                     case '-':
                     case 'kick':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         if (m.quoted) {
                             const _user = m.quoted.sender;
                             await client.groupParticipantsUpdate(groupId, [_user], 'remove')
@@ -967,6 +984,8 @@ const start = async () => {
                     case 'upadmin':
                     case '^':
                     case 'promote':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         if (m.quoted) {
                             const _user = m.quoted.sender;
                             await client.groupParticipantsUpdate(groupId, [_user], 'promote')
@@ -985,6 +1004,8 @@ const start = async () => {
                     case 'dm':
                     case 'unadmin':
                     case 'demote':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         if (m.quoted) {
                             const _user = m.quoted.sender;
                             await client.groupParticipantsUpdate(groupId, [_user], 'demote')
@@ -1002,6 +1023,8 @@ const start = async () => {
                         break;
                     case 'inv':
                     case 'rekrut':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         if (m.quoted) {
                             const _user = m.quoted.sender;
                             try {
@@ -1021,6 +1044,8 @@ const start = async () => {
                     case 'deskripsi':
                     case 'desc':
                     case 'updesc':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         if (args.length < 1) return reply(`Mengubah deskripsi group, example: ${prefix + cmd} ssstt... dilarang mengontol wkwkwk!`)
                         const _desc = args.join(' ')
                         await client.groupUpdateDescription(groupId, _desc)
@@ -1030,6 +1055,8 @@ const start = async () => {
                     case 'gname':
                     case 'upgname':
                     case 'cgname':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         if (args.length < 1) return reply(`Mengubah deskripsi group, example: ${prefix + cmd} ${package.name}`)
                         const _title = args.join(' ')
                         const _before = (await client.groupMetadata(groupId)).subject
@@ -1039,17 +1066,23 @@ const start = async () => {
                     case 'lock':
                     case 'tutup':
                     case 'close':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         await client.groupSettingUpdate(groupId, 'announcement')
                         reply('success')
                         break;
                     case 'unlock':
                     case 'buka':
                     case 'open':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         await client.groupSettingUpdate(groupId, 'not_announcement')
                         reply('success')
                         break;
                     case 'setpicture':
                     case 'setimage':
+                        if (!isGroupAdmin) return reply(cmdMSG.notGroupAdmin)
+                        if (!isBotGroupAdmin) return reply(cmdMSG.botNotAdmin)
                         if (isMedia || isQuotedImage) {
                             const message = isQuotedImage ? m.quoted : m
                             const buffer = await downloadMediaMessage(message)

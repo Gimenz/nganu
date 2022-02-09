@@ -64,7 +64,7 @@ const processTime = (timestamp, now) => {
  * @param  {String} url
  */
 const isUrl = (url) => {
-	return URL_REGEX.test(url)
+	return new RegExp(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/gi).test(url)
 };
 
 /**
