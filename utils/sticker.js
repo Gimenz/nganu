@@ -18,6 +18,8 @@ const { Exif } = require('./exif');
 const { randomBytes } = require('crypto');
 const { isUrl, getBuffer, fetchAPI } = require('./index');
 const { removeBackgroundFromImageBase64, removeBackgroundFromImageUrl, removeBackgroundFromImageFile } = require('remove.bg')
+const { EmojiAPI } = require("emoji-api");
+const emo = new EmojiAPI();
 //ffmpeg.setFfmpegPath("C:/ffmpeg/bin/ffmpeg.exe");
 
 let cropStyle = [
@@ -197,6 +199,17 @@ class Sticker {
             }
         })
         return res.url
+    }
+
+    /**
+     * convert emoji into image
+     * @param {string} emoji 
+     * @param {string} vendor 
+     * @returns 
+     */
+    static emoji = async (emoji, vendor = 'apple') => {
+        const res = await emo.get(emoji)
+        return res.images.find(x => x.vendor.toLowerCase().includes(vendor.toLowerCase()))
     }
 
     /**
