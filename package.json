@@ -1,5 +1,5 @@
 {
-  "name": "nganu",
+  "name": "Bot Wangsaf (Multi-Device)",
   "version": "1.2.45",
   "description": "simple Multi Device [MD] whatsapp-bot ",
   "main": "index.js",
@@ -22,7 +22,7 @@
     "botwa",
     "bot-whatsapp-md"
   ],
-  "author": "Gimenz",
+  "author": "@lorddimas_",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Gimenz/nganu/issues"
