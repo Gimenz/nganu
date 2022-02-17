@@ -124,6 +124,7 @@ const start = async () => {
         transitionGradient: true,
     });
     let client = makeWASocket({
+        version: [2, 2204, 13]
         printQRInTerminal: true,
         logger: pino({ level: 'silent' }),
         auth: state,
@@ -597,13 +598,13 @@ const start = async () => {
                         for (let v of chatsJid) {
                             await delay(5000)
                             let ms = m.quoted ? m.getQuotedObj() : m
-                            await client.copyNForward(v, client.cMod(v, ms, `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n#${chatsJid.indexOf(v) + 1}`, client.user.id), true)
+                            await client.copyNForward(v, client.cMod(v, ms, `📢 *Bot Broadcast*\n\n${args.join(' ')}\n\n#${chatsJid.indexOf(v) + 1}`, client.user.id), true)
                         }
                         reply(`Broadcasted to *${chatsJid.length}* chats`)
                     } else {
                         for (let v of chatsJid) {
                             await delay(5000)
-                            await client.sendMessage(v, { text: `📢 *Mg Bot Broadcast*\n\n${args.join(' ')}\n\n#${chatsJid.indexOf(v) + 1}` }, { sendEphemeral: true })
+                            await client.sendMessage(v, { text: `📢 *Bot Broadcast*\n\n${args.join(' ')}\n\n#${chatsJid.indexOf(v) + 1}` }, { sendEphemeral: true })
                         }
                         reply(`Broadcasted to *${chatsJid.length}* chats`)
                     }
@@ -730,7 +731,7 @@ const start = async () => {
             if (cmd == 'help' || cmd == 'menu') {
                 await typing(from)
                 const buttonsDefault = [
-                    { urlButton: { displayText: `🌐 Rest api`, url: `https://masgimenz.my.id` } },
+                    { urlButton: { displayText: `♨️ Group`, url: `https://chat.whatsapp.com/BLPOAP20ehx9R1wNSNpEcp` } },
                     { urlButton: { displayText: `💌 Telegram Bot`, url: `https://t.me/tikdl_bot` } },
                     { quickReplyButton: { displayText: `☎ Owner`, id: `${prefix}owner` } },
                 ]
@@ -749,17 +750,17 @@ const start = async () => {
                 await delay(2000)
                 const btn = [
                     { urlButton: { displayText: `🌐 Web`, url: `https://masgimenz.my.id` } },
-                    { urlButton: { displayText: `📸 Instagram`, url: `https://www.instagram.com/gimenz.id` } },
-                    { urlButton: { displayText: `🐈 Github`, url: `https://github.com/Gimenz` } },
-                    { urlButton: { displayText: `🎨 TikTok`, url: `https://www.tiktok.com/@gh0stp0w3r` } },
+                    { urlButton: { displayText: `📸 Instagram`, url: `https://www.instagram.com/lorddimas_` } },
+                    { urlButton: { displayText: `🐈 Github`, url: `https://github.com/Dimasbiasalah` } },
+                    { urlButton: { displayText: `🎨 TikTok`, url: `https://www.tiktok.com/@uwudhe7` } },
                 ]
                 client.sendMessage(from, { text: `Social Media`, footer, templateButtons: btn }, { quoted: m })
             }
 
             if (/^s(|ti(c|)ker)$/i.test(cmd)) {
                 let crop = flags.find(v => cropStyle.map(x => x == v.toLowerCase()))
-                let packname = /\|/i.test(body) ? arg.split('|')[0] : `${package.name}`
-                let stickerAuthor = /\|/i.test(body) ? arg.split('|')[1] : `${package.author}`
+                let packname = /\|/i.test(body) ? arg.split('|')[0] : `Bot Wangsaf (Multi-Device)`
+                let stickerAuthor = /\|/i.test(body) ? arg.split('|')[1] : `@lorddimas_`
                 let categories = Object.keys(Emoji).includes(arg.split('|')[2]) ? arg.split('|')[2] : 'love' || 'love'
                 try {
                     if (isMedia && !m.message.videoMessage || isQuotedImage) {
