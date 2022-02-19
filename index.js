@@ -78,11 +78,11 @@ const { Emoji } = require('./utils/exif');
 const cmdMSG = require('./src/cmdMessage.json')
 
 /** DB */
-if (!fs.existsSync('./db/chatsJid.json')) {
-    fs.writeFileSync('./db/chatsJid.json', JSON.stringify([]), 'utf-8')
+if (!fs.existsSync('./db/usersJid.json')) {
+    fs.writeFileSync('./db/usersJid.json', JSON.stringify([]), 'utf-8')
 }
 
-let chatsJid = JSON.parse(fs.readFileSync('./db/chatsJid.json', 'utf-8'))
+let chatsJid = JSON.parse(fs.readFileSync('./db/usersJid.json', 'utf-8'))
 global.shortenerAuth = process.env.sid_email !== '' && process.env.sid_password !== ''
 
 
