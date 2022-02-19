@@ -19,6 +19,9 @@ simbol *|* bermakna _atau_ */*
 *├* prefix ytmp4 <url>
 *├* prefix play <judul lagu>
 *├* prefix music <judul lagu>
+*├* prefix asupan <query>
+*├* prefix mix <😁😙>
+*├* prefix emo <😀>
 *├* prefix sticker <reply/send> (--circle | --rounded | --nobg | --help)
 *├* prefix rotate <reply/send> image | sticker <degree>
 *├* prefix flip|flop <reply/send> image | sticker

@@ -23,7 +23,7 @@ const { fromBuffer } = require('file-type');
 global.axios = axios
 global.config = require('../src/config.json')
 global.API = config.api
-global.db = []
+global.tempDB = []
 
 /**
  * Get text with color
@@ -184,8 +184,8 @@ function shrt(url, ...args) {
 		url,
 	}
 	Object.assign(data, ...args)
-	if (db.some(x => x.url == url)) return data
-	db.push(data);
+	if (tempDB.some(x => x.url == url)) return data
+	tempDB.push(data);
 	return data
 }
 
@@ -247,6 +247,33 @@ function formatK(number, locale = 'id-ID') {
 	return new Intl.NumberFormat(locale, { notation: 'compact' }).format(number)
 }
 
+const Scandir = (dir) => {
+	let subdirs = fs.readdirSync(dir)
+	let files = subdirs.map((sub) => {
+		let res = path.join(dir, sub)
+		return fs.statSync(res).isDirectory() ? Scandir(res) : res
+	});
+
+	return files.reduce((a, f) => a.concat(f), [])
+}
+
+const pluginLoader = (dir) => {
+	let pluginFolder = path.join(__dirname, dir)
+	let pluginFilter = filename => /\.js$/.test(filename)
+
+	let plugins = {}
+
+	for (let filelist of Scandir(pluginFolder).filter(pluginFilter)) {
+		filename = path.basename(filelist, '.js')
+		try {
+			plugins[filename] = require(filelist)
+		} catch (e) {
+			delete plugins[filename]
+		}
+	}
+	return plugins
+}
+
 module.exports = {
 	processTime,
 	isUrl,
@@ -262,5 +289,7 @@ module.exports = {
 	randRGB,
 	uploadImage,
 	isTiktokVideo,
-	formatK
+	formatK,
+	Scandir,
+	pluginLoader
 };

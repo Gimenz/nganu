@@ -1,5 +1,7 @@
 {
     "botNotAdmin": "this command can be used if bot is become to group admin",
     "notGroupAdmin": "this command only for group admins",
-    "mentionedOrQuotedJid": "reply a message or mention user"
+    "mentionedOrQuotedJid": "reply a message or mention user",
+    "groupMsg": "only group",
+    "owner": "this command only for owner"
 }
