@@ -1,5 +1,5 @@
 const YT = require('../../../lib/yt')
-const { isUrl, getBuffer } = require('../../../utils')
+const { isUrl, getBuffer, humanFileSize, secondsConvert } = require('../../../utils')
 
 module.exports = {
     tags: ['downloader'],
@@ -7,7 +7,7 @@ module.exports = {
     flags: ['vn'],
     cmd: ['ytmp3'],
     help: ['ytmp3'],
-    exec: async (m, client, { prefix, args, cmd, flags }) => {
+    exec: async (m, client, { prefix, args, cmd, flags, type }) => {
         try {
             url = args[0]
             if (args.length < 1 || !isUrl(url) || !YT.isYTUrl(url)) return m.reply(`*Penggunaan:*\n${prefix}${cmd} url --args\n*args* bersifat opsional (bisa diisi atau tidak)\n\n` +
@@ -28,7 +28,7 @@ module.exports = {
             } else {
                 let dl = new Set()
                 if (flags.find(v => v.toLowerCase() === 'metadata')) {
-                    await reply('Downloading mp3 [with tags metadata]')
+                    await m.reply('Downloading mp3 [with tags metadata]')
                     const obj = await YT.mp3(url, '', true)
                     dl.add(obj)
                 } else {
