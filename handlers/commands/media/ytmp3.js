@@ -28,7 +28,7 @@ module.exports = {
             } else {
                 let dl = new Set()
                 if (flags.find(v => v.toLowerCase() === 'metadata')) {
-                    await reply('Downloading mp3 [with tags metadata]')
+                    await m.reply('Downloading mp3 [with tags metadata]')
                     const obj = await YT.mp3(url, '', true)
                     dl.add(obj)
                 } else {
