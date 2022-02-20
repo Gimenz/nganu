@@ -274,6 +274,19 @@ const pluginLoader = (dir) => {
 	return plugins
 }
 
+/**
+ * mask an string // string = st**ng
+ * @param {string} str 
+ * @returns 
+ */
+function maskStr(str) {
+	var first4 = str.substring(0, 4);
+	var last5 = str.substring(str.length - 2);
+
+	mask = str.substring(4, str.length - 2).replace(/\d/g, "*");
+	return first4 + mask + last5
+}
+
 module.exports = {
 	processTime,
 	isUrl,
@@ -291,5 +304,6 @@ module.exports = {
 	isTiktokVideo,
 	formatK,
 	Scandir,
-	pluginLoader
+	pluginLoader,
+	maskStr
 };
