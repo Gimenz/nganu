@@ -45,7 +45,6 @@ let cropType = {
 }
 
 cropStyle = cropStyle.concat(Object.keys(colourspace))
-const arrayKu = process.env.removeBG.split(',')
 
 // some part of this code is copied from:  https://github.com/AlenSaito1/wa-sticker-formatter/ <- awesome library
 class Sticker {
@@ -139,6 +138,7 @@ class Sticker {
         })
     }
 
+    // i think did not work yet, bcz problem at libvips installation 
     static convertGif = (input) => {
         return new Promise((resolve, reject) => {
             sharp(input)
@@ -222,7 +222,8 @@ class Sticker {
      */
     static removeBG = async (input) => {
         try {
-            if (arrayKu.length < 1) throw Error('apikey is required to use this function')
+            if (!process.env.removeBG) throw 'remove.bg api-key did not set yet'
+            const arrayKu = process.env.removeBG.split(',')
             const response = await removeBackgroundFromImageBase64({
                 base64img: input.toString('base64'),
                 apiKey: arrayKu[Math.floor(Math.random() * arrayKu.length)],

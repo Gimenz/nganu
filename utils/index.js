@@ -19,6 +19,7 @@ const mime = require('mime-types');
 moment.tz.setDefault('Asia/Jakarta').locale('id');
 const FormData = require('form-data')
 const { default: axios, AxiosRequestConfig } = require('axios');
+const { default: got } = require('got')
 const { fromBuffer } = require('file-type');
 global.axios = axios
 global.config = require('../src/config.json')
@@ -233,8 +234,8 @@ const uploadImage = async (buffer) => {
  * @returns 
  */
 async function isTiktokVideo(link) {
-	const a = await axios.get(link)
-	let url = new URL(a.request.res.responseUrl)
+	const a = await got.get(link)
+	let url = new URL(a.redirectUrls[0])
 	return {
 		isVideo: !isNaN(path.basename(url.pathname)),
 		isUser: path.basename(url.pathname).startsWith('@'),
