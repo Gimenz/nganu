@@ -8,7 +8,7 @@ module.exports = {
             if (m.quoted && m.quoted.mtype == 'stickerMessage') {
                 await client.presenceSubscribe(m.chat)
                 await client.sendPresenceUpdate('composing', m.chat)
-                const media = await downloadMediaMessage(m.quoted)
+                const media = await client.downloadMediaMessage(m.quoted)
                 const json = await Sticker.extract(media);
                 m.reply(util.format(json))
             } else {

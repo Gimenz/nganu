@@ -4,5 +4,6 @@
 		"masgi": "https://masgimenz.my.id"
 	},
 	"quot": "```",
-	"autoPost": false
+	"autoPost": false,
+	"autoRead": true
 }

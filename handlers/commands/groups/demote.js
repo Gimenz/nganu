@@ -23,7 +23,7 @@ module.exports = {
                     await client.groupParticipantsUpdate(m.chat, [usr], 'demote')
                 }
             } else {
-                m.reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd} @user`)
+                m.reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd ? cmd : ''} @user`)
             }
         } catch (error) {
             m.reply(util.format(error))

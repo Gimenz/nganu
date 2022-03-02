@@ -5,7 +5,7 @@ module.exports = {
     help: ['toimg'],
     exec: async (m, client) => {
         try {
-            if (m.quoted || m.quoted.mtype == 'stickerMessage') {
+            if (m.quoted && m.quoted.mtype == 'stickerMessage') {
                 const media = await client.downloadMediaMessage(m.quoted)
                 await client.sendMessage(m.chat, { image: media, jpegThumbnail: media }, { quoted: m })
             } else {

@@ -10,7 +10,7 @@ module.exports = {
     botAdmin: true,
     admin: true,
     exec: async (m, client, { prefix, cmd, args }) => {
-        if (args.length < 1) return m.reply(`example: ${prefix + cmd} 628xxx, +6285-2335-xxxx, 085236xxx`)
+        if (args.length < 1) return m.reply(`example: ${prefix + cmd ? cmd : ''} 628xxx, +6285-2335-xxxx, 085236xxx`)
         try {
             let _participants = args.join(' ').split`,`.map(v => formatPhone(v.replace(/[^0-9]/g, '')))
             let users = (await Promise.all(

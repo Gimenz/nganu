@@ -18,7 +18,7 @@ module.exports = {
             } else if (args.length >= 1 || m.mentionedJid.length >= 1) {
                 let _participants = parseMention(body)
                 if (_participants.length < 1) return reply(`tag user atau reply pesan nya, contoh : ${prefix + cmd} @user`)
-                reply(`Promoting *${_participants.length}* group members to be Group Admin within delay 3 seconds to prevent banned`)
+                m.reply(`Promoting *${_participants.length}* group members to be Group Admin within delay 3 seconds to prevent banned`)
                 for (let usr of _participants) {
                     await delay(3000)
                     await client.groupParticipantsUpdate(m.chat, [usr], 'promote')

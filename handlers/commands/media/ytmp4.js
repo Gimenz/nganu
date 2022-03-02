@@ -6,7 +6,7 @@ module.exports = {
     cmd: ['ytmp4', 'yt'],
     args: ['url'],
     help: ['ytmp4', 'yt'],
-    exec: async (m, client, { prefix, args, cmd, flags }) => {
+    exec: async (m, client, { prefix, args, cmd, url }) => {
         if (args.length < 1 || !isUrl(url) || !YT.isYTUrl(url)) return m.reply('Bukan link YouTube')
         try {
             m.reply('proses')

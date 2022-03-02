@@ -1,6 +1,6 @@
 {
   "name": "nganu",
-  "version": "1.2.46",
+  "version": "1.2.47",
   "description": "simple Multi Device [MD] whatsapp-bot ",
   "main": "index.js",
   "directories": {
@@ -29,7 +29,7 @@
   },
   "homepage": "https://github.com/Gimenz/nganu#readme",
   "dependencies": {
-    "@adiwajshing/baileys": "^4.0.0",
+    "@adiwajshing/baileys": "^4.0.1",
     "canvas": "^2.9.0",
     "cfonts": "^2.10.0",
     "dotenv": "^10.0.0",

@@ -1,6 +1,7 @@
 const { delay } = require("@adiwajshing/baileys")
+const fs = require('fs')
 
-let chatsJid = JSON.parse(fs.readFileSync('../../../db/chatsJid.json', 'utf-8'))
+let chatsJid = require('../../../db/usersJid.json')//JSON.parse(fs.readFileSync('../../db/usersJid.json', 'utf-8'))
 
 module.exports = {
     tags: ['owner'],
@@ -10,7 +11,7 @@ module.exports = {
     owner: true,
     exec: async (m, client, { args }) => {
         try {
-            if (args.length < 1) return mreply('text nya mana?')
+            if (args.length < 1) return m.reply('text nya mana?')
             m.reply(`sending broadcast message to *${chatsJid.length}* chats, estimated ${Math.floor((5 * chatsJid.length) / 60)} minutes done.`)
             if (isMedia || /image|video/i.test(m.quoted ? m.quoted.mtype : m.mtype)) {
                 //const buff = await downloadMediaMessage(m.quoted ? m.quoted : m.message.imageMessage)

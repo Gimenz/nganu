@@ -11,7 +11,7 @@ module.exports = {
         try {
             if (m.mtype == 'imageMessage' || m.quoted && m.quoted.mtype && m.quoted.mtype == 'imageMessage') {
                 let [atas, bawah] = args.join(' ').replace('--nobg', '').replace('--removebg', '').split('|')
-                const mediaData = await downloadMediaMessage(m.quoted ? m.quoted : m)
+                const mediaData = await client.downloadMediaMessage(m.quoted ? m.quoted : m)
                 let bgUrl;
                 if (flags.find(v => v.match(/nobg|removebg/))) {
                     const removed = await Sticker.removeBG(mediaData)

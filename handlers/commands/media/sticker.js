@@ -27,7 +27,7 @@ module.exports = {
                 const data = new Sticker(buff, { packname, author: stickerAuthor, packId: '', categories })
                 await client.sendMessage(m.chat, await data.toMessage(), { quoted: m })
             } else if (m.quoted && m.quoted.mtype == 'stickerMessage' && !m.quoted.isAnimated) {
-                const buff = await downloadMediaMessage(m.quoted)
+                const buff = await client.downloadMediaMessage(m.quoted)
                 const data = new Sticker(buff, { packname, author: stickerAuthor, packId: '', categories }, crop)
                 await client.sendMessage(m.chat, await data.toMessage(), { quoted: m })
             } else if (isUrl(url)) {

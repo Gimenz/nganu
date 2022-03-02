@@ -36,7 +36,7 @@ global.config = require('./src/config.json')
 global.quot = config.quot
 global.API = config.api
 global.owner = config.owner
-global.footer = `${package.name} ~ Multi Device [BETA]`
+global.footer = `© ${package.name} 2020`
 const { SID } = require('sid-api')
 global.sID = new SID(process.env.sid_email, process.env.sid_password);
 let session;
@@ -64,18 +64,10 @@ const {
     color,
     bgColor,
     msgs,
-    getBuffer,
-    isUrl,
-    formatPhone,
-    uploadImage,
     pluginLoader,
 } = require('./utils');
-const { Sticker, cropStyle } = require('./utils/sticker')
 const { Serialize, checkWAVersion } = require('./lib/simple');
-const { parseMention } = require('./lib/function');
-const { pasaran } = require('./lib/tgl');
-const { Emoji } = require('./utils/exif');
-const cmdMSG = require('./src/cmdMessage.json')
+const cmdMSG = require('./src/cmdMessage.json');
 
 /** DB */
 if (!fs.existsSync('./db/usersJid.json')) {
@@ -84,7 +76,8 @@ if (!fs.existsSync('./db/usersJid.json')) {
 
 let chatsJid = JSON.parse(fs.readFileSync('./db/usersJid.json', 'utf-8'))
 global.shortenerAuth = process.env.sid_email !== '' && process.env.sid_password !== ''
-
+const START_TIME = Date.now();
+fs.writeFileSync('./src/start.txt', START_TIME.toString())
 
 const start = async () => {
     // LOAD PLUGINS
@@ -107,6 +100,14 @@ const start = async () => {
     console.log(color('[SYS]', 'cyan'), `Package Version`, color(`${package.version}`, '#009FF0'));
     console.log(color('[SYS]', 'cyan'), `WA Version`, color((await checkWAVersion()).join('.'), '#38ef7d'));
     console.log(color('[SYS]', 'cyan'), `Loaded Plugins`, color(Object.keys(plugins).length, '#38ef7d'));
+    const LAUNCH_TIME_MS = Date.now() - START_TIME;
+    console.log(
+        color('[SYS]', 'cyan'),
+        `Client loaded with ${color(Object.keys(store.contacts).length, '#009FF0')} contacts, ` +
+        `${color(store.chats.length, '#009FF0')} chats, ` +
+        `${color(Object.keys(store.messages).length, '#009FF0')} messages in ` +
+        `${color(LAUNCH_TIME_MS / 1000, '#38ef7d')}s`
+    );
     let client = makeWASocket({
         version: await checkWAVersion(),
         printQRInTerminal: true,
@@ -127,8 +128,8 @@ const start = async () => {
         } else if (connection === 'close') {
             const log = msg => console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(msg, '#f64f59'));
             const statusCode = lastDisconnect.error ? new Boom(lastDisconnect)?.output.statusCode : 0;
-            console.log(lastDisconnect.error);
-            if (statusCode === DisconnectReason.badSession) { log(`Bad session file, delete ${session} and run again`); process.exit(); }
+
+            if (statusCode === DisconnectReason.badSession) { log(`Bad session file, delete ${session} and run again`); start(); }
             else if (statusCode === DisconnectReason.connectionClosed) { log('Connection closed, reconnecting....'); start() }
             else if (statusCode === DisconnectReason.connectionLost) { log('Connection lost, reconnecting....'); start() }
             else if (statusCode === DisconnectReason.connectionReplaced) { log('Connection Replaced, Another New Session Opened, Please Close Current Session First'); process.exit() }
@@ -156,8 +157,7 @@ const start = async () => {
             let type = client.msgType = getContentType(m.message);
 
             Serialize(client, m)
-            let t = m.messageTimestamp
-            client.time = moment.tz('Asia/Jakarta').format('DD/MM HH:mm:ss')
+            let t = client.timestamp = m.messageTimestamp
             const body = (type === 'conversation') ? m.message.conversation : (type == 'imageMessage') ? m.message.imageMessage.caption : (type == 'videoMessage') ? m.message.videoMessage.caption : (type == 'extendedTextMessage') ? m.message.extendedTextMessage.text : (type == 'buttonsResponseMessage') ? m.message.buttonsResponseMessage.selectedButtonId : (type == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (type == 'templateButtonReplyMessage') ? m.message.templateButtonReplyMessage.selectedId : (type === 'messageContextInfo') ? (m.message.listResponseMessage.singleSelectReply.selectedRowId || m.message.buttonsResponseMessage.selectedButtonId || m.text) : ''
 
             let isGroupMsg = isJidGroup(from)
@@ -208,12 +208,12 @@ const start = async () => {
                 if (isGroupMsg) {
                     if (!chatsJid.some((x => x == from))) {
                         chatsJid.push(from)
-                        fs.writeFileSync('./db/chatsJid.json', JSON.stringify(chatsJid), 'utf-8')
+                        fs.writeFileSync('./db/usersJid.json', JSON.stringify(chatsJid), 'utf-8')
                     }
                 }
                 if (!chatsJid.some((x => x == sender))) {
                     chatsJid.push(sender)
-                    fs.writeFileSync('./db/chatsJid.json', JSON.stringify(chatsJid), 'utf-8')
+                    fs.writeFileSync('./db/usersJid.json', JSON.stringify(chatsJid), 'utf-8')
                 }
             }
 
@@ -237,6 +237,10 @@ const start = async () => {
                 await client.presenceSubscribe(from)
                 await client.sendPresenceUpdate('composing', from)
             }
+
+            if (config.autoRead) [
+                client.sendReadReceipt(from, sender, [m.key.id])
+            ]
 
             for (let name in plugins) {
                 let plugin = plugins[name]
