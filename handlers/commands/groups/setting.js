@@ -34,7 +34,7 @@ module.exports = {
                 const _before = (await client.groupMetadata(m.chat)).subject
                 await client.groupUpdateSubject(m.chat, _text)
                 m.reply(`Berhasil mengubah nama group.\n\nBefore : ${_before}\nAfter : ${_text}`)
-            } else if (/^desc|desk|deskripsi|description|rules$/) {
+            } else if (/^desc|desk|deskripsi|description|rules$/.test(args[0])) {
                 if (_text.length < 1) return m.reply(`Mengubah deskripsi group, example: ${prefix + cmd} ${args[0]} ssstt... dilarang mengontol wkwkwk!`)
                 await client.groupUpdateDescription(m.chat, _text)
             } else {

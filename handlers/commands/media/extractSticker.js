@@ -1,3 +1,5 @@
+const { Sticker } = require("../../../utils/sticker");
+
 module.exports = {
     tags: ['sticker', 'media'],
     args: ['reply a sticker'],

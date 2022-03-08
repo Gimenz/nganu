@@ -1,5 +1,7 @@
 const { Sticker } = require("../../../utils/sticker")
 const package = require("../../../package.json")
+let { info, statistics } = require("../../../db")
+let { stats } = info('stats')
 
 module.exports = {
     tags: ['media'],
@@ -17,8 +19,9 @@ module.exports = {
                 }
             } else if (m.quoted && m.quoted.mtype == 'stickerMessage') {
                 const removed = await Sticker.removeBG(await m.quoted.download())
-                const data = new Sticker(removed, { packname: package.name, author: package.author })
+                const data = new Sticker(removed, { packname: `${package.name} #${stats.sticker}`, author: package.author })
                 await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                statistics('sticker')
             } else {
                 m.reply(`send/reply image. example :\n${prefix + cmd}\n\ndocument result use --doc`)
             }

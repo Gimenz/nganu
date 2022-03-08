@@ -13,7 +13,7 @@ module.exports = {
         try {
             if (args.length < 1) return m.reply('text nya mana?')
             m.reply(`sending broadcast message to *${chatsJid.length}* chats, estimated ${Math.floor((5 * chatsJid.length) / 60)} minutes done.`)
-            if (isMedia || /image|video/i.test(m.quoted ? m.quoted.mtype : m.mtype)) {
+            if (/image|video/i.test(m.quoted ? m.quoted.mtype : m.mtype)) {
                 //const buff = await downloadMediaMessage(m.quoted ? m.quoted : m.message.imageMessage)
                 for (let v of chatsJid) {
                     await delay(5000)

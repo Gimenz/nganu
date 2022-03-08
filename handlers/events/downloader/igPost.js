@@ -1,6 +1,7 @@
 require('dotenv').config()
 const { igApi, shortcodeFormatter, IGPostRegex } = require("insta-fetcher");
-const { shrt } = require('../../../utils');
+const { statistics } = require('../../../db');
+const { shrt, fetchFilesize } = require('../../../utils');
 let ig = new igApi(process.env.session_id)
 
 module.exports = {
@@ -44,6 +45,8 @@ module.exports = {
                     },
                     { quoted: m }
                 )
+                let size = await fetchFilesize(result.links[0].url)
+                statistics('filesize', size)
             } else {
                 for (let i = 0; i < arr.length; i++) {
                     if (arr[i].type == "image") {

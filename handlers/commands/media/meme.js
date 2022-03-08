@@ -1,6 +1,8 @@
 const { cropStyle, Sticker } = require("../../../utils/sticker")
 const package = require("../../../package.json")
 const { uploadImage } = require("../../../utils")
+let { info, statistics } = require("../../../db")
+let { stats } = info('stats')
 
 module.exports = {
     tags: ['sticker', 'media'],
@@ -20,8 +22,9 @@ module.exports = {
                     bgUrl = await uploadImage(mediaData)
                 }
                 const res = await Sticker.memeGenerator(atas ? atas : '', bawah ? bawah : '', bgUrl)
-                const data = new Sticker(res, { packname: package.name, author: package.author })
+                const data = new Sticker(res, { packname: `${package.name} #${stats.sticker}`, author: package.author })
                 await client.sendMessage(m.chat, await data.toMessage(), { quoted: m })
+                statistics('sticker')
             } else {
                 m.reply(`${m.quoted && m.quoted.mtype == 'stickerMessage' ? 'you\'re replied a sticker message, please ' : ''}send/reply image. example :\n${prefix + cmd} aku diatas | kamu dibawah\n\nwith no background use --nobg`)
             }

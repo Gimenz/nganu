@@ -15,6 +15,6 @@ module.exports = {
             { urlButton: { displayText: `🐈 Github`, url: `https://github.com/Gimenz` } },
             { urlButton: { displayText: `🎨 TikTok`, url: `https://www.tiktok.com/@gh0stp0w3r` } },
         ]
-        client.sendMessage(m.chat, { text: `Social Media`, footer, templateButtons: btn }, { quoted: m })
+        client.sendMessage(m.chat, { text: `Social Media`, footer: global.footer, templateButtons: btn }, { quoted: m })
     }
 }

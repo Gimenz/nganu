@@ -86,12 +86,10 @@ module.exports = {
         ]
         client.sendMessage(m.chat, {
             caption: _text,
-            footer: package.name,
+            footer: global.footer,
             templateButtons: buttonsDefault,
             location: { jpegThumbnail: (await getBuffer('./src/logo.jpg')).buffer, name: `${package.name}` },
             headerType: 4
         }, { quoted: m })
     }
 }
-
-const fs = require('fs')

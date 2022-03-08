@@ -11,16 +11,13 @@
 require('dotenv').config()
 const {
     default: makeWASocket,
-    getDevice,
     DisconnectReason,
-    delay,
     useSingleFileAuthState,
     Browsers,
     isJidGroup,
-    S_WHATSAPP_NET,
     makeInMemoryStore,
     jidNormalizedUser,
-    jidDecode,
+    fetchLatestBaileysVersion,
     getContentType
 } = require('@adiwajshing/baileys');
 const { Boom } = require('./node_modules/@hapi/boom')
@@ -30,13 +27,11 @@ const CFonts = require('cfonts');
 const gradient = require('gradient-string');
 let package = require('./package.json');
 const yargs = require('yargs/yargs')
-const { exec } = require('child_process');
 global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse())
 global.config = require('./src/config.json')
-global.quot = config.quot
 global.API = config.api
 global.owner = config.owner
-global.footer = `© ${package.name} 2020`
+global.footer = `© ${package.name} ${new Date().getFullYear()}`
 const { SID } = require('sid-api')
 global.sID = new SID(process.env.sid_email, process.env.sid_password);
 let session;
@@ -66,8 +61,9 @@ const {
     msgs,
     pluginLoader,
 } = require('./utils');
-const { Serialize, checkWAVersion } = require('./lib/simple');
+const { Serialize } = require('./lib/simple');
 const cmdMSG = require('./src/cmdMessage.json');
+const { statistics } = require('./db');
 
 /** DB */
 if (!fs.existsSync('./db/usersJid.json')) {
@@ -97,8 +93,9 @@ const start = async () => {
         gradient: ['#DCE35B', '#45B649'],
         transitionGradient: true,
     });
+    const { version: WAVersion } = await fetchLatestBaileysVersion()
     console.log(color('[SYS]', 'cyan'), `Package Version`, color(`${package.version}`, '#009FF0'));
-    console.log(color('[SYS]', 'cyan'), `WA Version`, color((await checkWAVersion()).join('.'), '#38ef7d'));
+    console.log(color('[SYS]', 'cyan'), `WA Version`, color(WAVersion.join('.'), '#38ef7d'));
     console.log(color('[SYS]', 'cyan'), `Loaded Plugins`, color(Object.keys(plugins).length, '#38ef7d'));
     const LAUNCH_TIME_MS = Date.now() - START_TIME;
     console.log(
@@ -109,7 +106,7 @@ const start = async () => {
         `${color(LAUNCH_TIME_MS / 1000, '#38ef7d')}s`
     );
     let client = makeWASocket({
-        version: await checkWAVersion(),
+        version: WAVersion,
         printQRInTerminal: true,
         logger: pino({ level: 'silent' }),
         auth: state,
@@ -152,10 +149,14 @@ const start = async () => {
         try {
             if (!msg.messages) return
             const m = msg.messages[0]
+            if (m.key.fromMe) {
+                statistics('msgSent')
+            } else {
+                statistics('msgRecv')
+            }
             if (m.key.fromMe) return
             const from = m.key.remoteJid;
             let type = client.msgType = getContentType(m.message);
-
             Serialize(client, m)
             let t = client.timestamp = m.messageTimestamp
             const body = (type === 'conversation') ? m.message.conversation : (type == 'imageMessage') ? m.message.imageMessage.caption : (type == 'videoMessage') ? m.message.videoMessage.caption : (type == 'extendedTextMessage') ? m.message.extendedTextMessage.text : (type == 'buttonsResponseMessage') ? m.message.buttonsResponseMessage.selectedButtonId : (type == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (type == 'templateButtonReplyMessage') ? m.message.templateButtonReplyMessage.selectedId : (type === 'messageContextInfo') ? (m.message.listResponseMessage.singleSelectReply.selectedRowId || m.message.buttonsResponseMessage.selectedButtonId || m.text) : ''
@@ -231,9 +232,7 @@ const start = async () => {
                 console.log(color('[CMD]'), color(moment(t * 1000).format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`${cmd} [${args.length}]`), color(`${msgs(body)}`, 'cyan'), '~> from', gradient.teen(pushname), 'in', gradient.fruit(formattedTitle))
             }
 
-            if (isCmd) {
-                await client.sendReadReceipt(from, sender, [m.key.id])
-                await delay(2000)
+            if (isCmd && config.composing) {
                 await client.presenceSubscribe(from)
                 await client.sendPresenceUpdate('composing', from)
             }
@@ -252,10 +251,10 @@ const start = async () => {
                             ? plugin.cmd == cmd
                             : false
                     if (!turn) continue
-                    if (typeof plugin.admin != 'undefined' && plugin.admin && !isGroupAdmin) {
+                    if (typeof plugin.admin != 'undefined' && plugin.admin && !isGroupAdmin && isGroupMsg) {
                         m.reply(cmdMSG.notGroupAdmin)
                         continue
-                    } else if (typeof plugin.botAdmin != 'undefined' && plugin.botAdmin && !isBotGroupAdmin) {
+                    } else if (typeof plugin.botAdmin != 'undefined' && plugin.botAdmin && !isBotGroupAdmin && isGroupMsg) {
                         m.reply(cmdMSG.botNotAdmin)
                         continue
                     } else if (typeof plugin.group != 'undefined' && plugin.group && !isGroupMsg) {
@@ -266,16 +265,19 @@ const start = async () => {
                         continue
                     }
                     await plugin.exec(m, client, { body, prefix, args, arg, cmd, url, flags, msg, plugins })
+                    statistics('cmd')
                     break
                 } else if (plugin.regex instanceof RegExp && plugin.regex.test(body) && !m.isBot) {
                     logEvent(body.match(plugin.regex)[0])
                     await plugin.exec(m, client, { body, logEvent, prefix, args, cmd, url })
+                    statistics('autodownload')
                 } else if (plugin.startsWith && body.startsWith(plugin.startsWith) && !m.isBot) {
                     if (typeof plugin.owner != 'undefined' && plugin.owner && !isOwner) return
                     if (typeof plugin.admin != 'undefined' && plugin.admin && !isGroupAdmin) return
                     if (typeof plugin.botAdmin != 'undefined' && plugin.botAdmin && !isBotGroupAdmin) return
                     if (typeof plugin.group != 'undefined' && plugin.group && !isGroupMsg) return
                     await plugin.exec(m, client, { body, prefix, args, arg, cmd, url, flags, msg, plugins })
+                    statistics('cmd')
                 }
             }
 

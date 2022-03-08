@@ -167,6 +167,15 @@ async function fetchAPI(api, params, options = {}) {
 	}
 }
 
+async function fetchFilesize(url, options = {}) {
+	try {
+		const data = await axios.get(url, ...options)
+		return data.headers['content-length']
+	} catch (error) {
+		throw error
+	}
+}
+
 const formatPhone = function (number) {
 	let formatted = number.replace(/\D/g, '');
 	if (formatted.startsWith('0')) {
@@ -306,5 +315,6 @@ module.exports = {
 	formatK,
 	Scandir,
 	pluginLoader,
-	maskStr
+	maskStr,
+	fetchFilesize
 };

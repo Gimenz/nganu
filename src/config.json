@@ -3,7 +3,7 @@
 	"api": {
 		"masgi": "https://masgimenz.my.id"
 	},
-	"quot": "```",
 	"autoPost": false,
-	"autoRead": true
+	"autoRead": true,
+	"composing": true
 }

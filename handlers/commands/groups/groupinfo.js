@@ -15,7 +15,7 @@ module.exports = {
             let caption = `${_meta.subject} - Created by @${_meta.owner.split('@')[0]} on ${moment(_meta.creation * 1000).format('ll')}\n\n` +
                 `*${_meta.participants.length}* Total Members\n*${_meta.participants.filter(x => x.admin === 'admin').length}* Admin\n*${_meta.participants.filter(x => x.admin === null).length}* Not Admin\n\n` +
                 `Group ID : ${_meta.id}`
-            await client.sendMessage(from,
+            await client.sendMessage(m.chat,
                 {
                     caption,
                     image: (await getBuffer(_img)).buffer,

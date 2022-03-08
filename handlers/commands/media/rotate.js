@@ -1,5 +1,7 @@
 const { cropStyle, Sticker } = require("../../../utils/sticker")
 const package = require("../../../package.json")
+let { info, statistics } = require("../../../db")
+let { stats } = info('stats')
 const degrees = ['90', '180', '270']
 
 module.exports = {
@@ -19,8 +21,9 @@ module.exports = {
             } else if (m.quoted && m.quoted.mtype == 'stickerMessage' && !m.quoted.isAnimated) {
                 const buff = await client.downloadMediaMessage(m.quoted)
                 const rotated = await Sticker.rotate(buff, deg);
-                const data = new Sticker(rotated, { packname: package.name, author: package.author, packId: deg }, crop)
+                const data = new Sticker(rotated, { packname: `${package.name} #${stats.sticker}`, author: package.author, packId: deg }, crop)
                 await client.sendMessage(m.chat, await data.toMessage(), { quoted: m })
+                statistics('sticker')
             } else {
                 m.reply(`send/reply image or sticker. example :\n${prefix + cmd} degrees\n\nlist degrees :${degrees.map(x => '- ' + x).join('\n')}`)
             }

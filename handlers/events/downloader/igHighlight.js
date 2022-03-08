@@ -1,6 +1,7 @@
 require('dotenv').config()
 const { default: axios } = require('axios')
 const { igApi } = require("insta-fetcher");
+const { statistics } = require('../../../db');
 const { shrt } = require('../../../utils');
 let ig = new igApi(process.env.session_id)
 const Regex = /https:\/\/www\.instagram\.com\/s\/(.*?)\?story_media_id=([\w-]+)/g
@@ -27,7 +28,7 @@ module.exports = {
             ]
             let buttonMessage = {
                 caption: `*${filterHighlight.title}* - _Highlights from https://www.instagram.com/${username}_\nTaken at : ${moment(filterReels.taken_at * 1000).format('DD/MM/YY HH:mm:ss')}`,
-                footer,
+                footer: global.footer,
                 templateButtons: btnCover,
                 height: filterReels.dimensions.height,
                 width: filterReels.dimensions.width
@@ -36,6 +37,8 @@ module.exports = {
                 ? buttonMessage['image'] = { url: filterReels.url }
                 : buttonMessage['video'] = { url: filterReels.url }
             await client.sendMessage(m.chat, buttonMessage, { quoted: m })
+            let size = await fetchFilesize(filterReels.url)
+            statistics('filesize', size)
         } catch (error) {
             console.log(error);
             await m.reply(util.format(error))

@@ -1,3 +1,4 @@
+const { statistics } = require("../../../db")
 const { isTiktokVideo, fetchAPI, formatK, shrt } = require("../../../utils")
 
 module.exports = {
@@ -41,6 +42,7 @@ module.exports = {
                     video: { url: video.play_addr.url_list[1] }
                 }
                 await client.sendMessage(m.chat, buttonMessage, { quoted: m })
+                statistics('filesize', video.play_addr.data_size)
             }
         } catch (error) {
             console.log(error);

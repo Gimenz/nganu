@@ -1,5 +1,6 @@
 view
 db/*
+!db/index.js
 !.gitkeep
 temp
 node_modules
@@ -15,3 +16,4 @@ emojis.json
 test-session.json
 lib/pinterest.js
 start.txt
+tesdb.js

@@ -5,22 +5,20 @@ const config = require('../../../src/config.json')
 module.exports = {
     tags: ['owner'],
     args: ['on|off'],
-    help: ['autoread'],
+    help: ['typing', 'composing'],
     owner: true,
     exec: async (m, client, { body, msg, args }) => {
         try {
-            await client.presenceSubscribe(m.chat)
-            await client.sendPresenceUpdate('composing', m.chat)
             if (args[0] === 'on') {
-                if (config.autoRead) return m.reply('✅ *Auto Read* sudah Aktif sebelumnya!')
+                if (config.autoRead) return m.reply('✅ *Auto Typing* sudah Aktif sebelumnya!')
                 config.autoRead = true
                 fs.writeFileSync('./src/config.json', JSON.stringify(config, null, 2))
-                m.reply('✅ *Auto Read* Aktif!')
+                m.reply('✅ *Auto Typing* Aktif!')
             } else if (args[0] == 'off') {
-                if (!config.autoRead) return m.reply('❌ *Auto Read* sudah Nonaktif sebelumnya!')
+                if (!config.autoRead) return m.reply('❌ *Auto Typing* sudah Nonaktif sebelumnya!')
                 config.autoRead = false
                 fs.writeFileSync('./src/config.json', JSON.stringify(config, null, 2))
-                m.reply('❌ *Auto Read* Nonaktif!')
+                m.reply('❌ *Auto Typing* Nonaktif!')
             } else {
                 m.reply('silahkan pilih on / off')
             }
