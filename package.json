@@ -1,6 +1,6 @@
 {
   "name": "nganu",
-  "version": "1.2.47",
+  "version": "1.2.48",
   "description": "simple Multi Device [MD] whatsapp-bot ",
   "main": "index.js",
   "directories": {
@@ -30,6 +30,7 @@
   "homepage": "https://github.com/Gimenz/nganu#readme",
   "dependencies": {
     "@adiwajshing/baileys": "^4.0.1",
+    "@vitalets/google-translate-api": "^8.0.0",
     "canvas": "^2.9.0",
     "cfonts": "^2.10.0",
     "dotenv": "^10.0.0",
@@ -55,7 +56,7 @@
     "qrcode": "^1.5.0",
     "readline": "^1.3.0",
     "remove.bg": "^1.3.0",
-    "sid-api": "github:Gimenz/sid-api",
+    "sid-api": "github:Gimenz/sid",
     "socket.io": "^4.4.0",
     "syntax-error": "^1.4.0",
     "systeminformation": "^5.9.17",

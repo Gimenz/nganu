@@ -15,7 +15,7 @@ module.exports = {
                 if (!text) return m.reply('textnya mana?')
                 client.sendMessage(m.chat, { text, mentions: groupMembers.map(x => x.id) })
             } else {
-                text = args.length >= 1 ? `@${jidDecode(m.sender)}${args.join(' ')}\n` : '*Tag All Members*\n'
+                text = args.length >= 1 ? `@${jidDecode(m.sender).user} : ${args.join(' ')}\n` : '*Tag All Members*\n'
                 n = 1
                 for (let i of groupMembers) {
                     text += `\n*_${n}_.* @${jidDecode(i.id).user}`

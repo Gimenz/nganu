@@ -126,6 +126,7 @@ const start = async () => {
             const log = msg => console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(msg, '#f64f59'));
             const statusCode = lastDisconnect.error ? new Boom(lastDisconnect)?.output.statusCode : 0;
 
+            console.log(lastDisconnect.error);
             if (statusCode === DisconnectReason.badSession) { log(`Bad session file, delete ${session} and run again`); start(); }
             else if (statusCode === DisconnectReason.connectionClosed) { log('Connection closed, reconnecting....'); start() }
             else if (statusCode === DisconnectReason.connectionLost) { log('Connection lost, reconnecting....'); start() }
@@ -134,7 +135,7 @@ const start = async () => {
             else if (statusCode === DisconnectReason.restartRequired) { log('Restart required, restarting...'); start(); }
             else if (statusCode === DisconnectReason.timedOut) { log('Connection timedOut, reconnecting...'); start(); }
             else {
-                console.log(lastDisconnect.error)
+                console.log(lastDisconnect.error); start()
             }
         } else if (connection === 'open') {
             console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`${package.name} is now Connected...`, '#38ef7d'));
@@ -237,9 +238,9 @@ const start = async () => {
                 await client.sendPresenceUpdate('composing', from)
             }
 
-            if (config.autoRead) [
+            if (config.autoRead) {
                 client.sendReadReceipt(from, sender, [m.key.id])
-            ]
+            }
 
             for (let name in plugins) {
                 let plugin = plugins[name]

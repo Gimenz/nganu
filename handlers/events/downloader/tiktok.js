@@ -29,9 +29,9 @@ module.exports = {
                 let idMp3 = shrt(music.play_url.uri, { title: `${music.title}`, tiktokAudio: true })
                 let idVideo = shrt(video.play_addr.url_list[1], { title: `original sound - ${author.unique_id}` })
                 const btnCover = [
-                    { quickReplyButton: { displayText: `Original Sound`, id: `${prefix}sendtaudio ${idMp3.id}` } },
+                    { quickReplyButton: { displayText: `Original Sound`, id: `${prefix}sendthis ${idMp3.id}` } },
                     { quickReplyButton: { displayText: `Extract Audio`, id: `${prefix}tomp3 ${idVideo.id}` } },
-                    { urlButton: { displayText: `⏬ Download in Browser`, url: `${shortenerAuth ? 'https://s.id/' + (await sID.short(idVideo.url)).link.short : idVideo.url}` } }
+                    { urlButton: { displayText: `⏬ Download in Browser`, url: `${shortenerAuth ? 'https://s.id/' + (await sID.short(idVideo.url)).data.short : idVideo.url}` } }
                 ]
                 let buttonMessage = {
                     caption,

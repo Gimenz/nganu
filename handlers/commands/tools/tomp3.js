@@ -7,7 +7,7 @@ module.exports = {
     help: ['tomp3', 'toaudio'],
     exec: async (m, client, { prefix, args, cmd }) => {
         try {
-            if (m.quoted.mtype === 'videoMessage') {
+            if (m.quoted && m.quoted.mtype === 'videoMessage') {
                 const buffer = await client.downloadMediaMessage(m.quoted)
                 const res = await toAudio(buffer)
                 await client.sendFile(m.chat, res, m, { audio: true })
