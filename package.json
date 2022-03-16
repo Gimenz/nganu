@@ -60,6 +60,7 @@
     "socket.io": "^4.4.0",
     "syntax-error": "^1.4.0",
     "systeminformation": "^5.9.17",
+    "twitter": "^1.7.1",
     "yargs": "^17.3.1",
     "yt-search": "^2.10.3",
     "ytdl-core": "^4.10.0"

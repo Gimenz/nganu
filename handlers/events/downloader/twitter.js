@@ -1,4 +1,4 @@
-const { fetchAPI } = require("../../../utils")
+const twit = require('../../../lib/twit')
 const regex = /https?:\/\/twitter.com\/[0-9-a-zA-Z_]{1,20}\/status\/[0-9]*/g
 
 module.exports = {
@@ -7,13 +7,13 @@ module.exports = {
     exec: async (m, client, { body }) => {
         try {
             let url = body.match(regex)[0]
-            let { result: data } = await fetchAPI('masgi', '/twitter/download.php?url=' + url)
-            await m.reply(`Media from *${data.name} [@${data.username}]* ${'```'}${data.full_text}${'```'}\n\nTotal ${data.media.mediaUrl.length} ${data.media.mediaType}` || '')
-            for (i of data.media.mediaUrl) {
-                if (data.media.mediaType == 'animated_gif') {
-                    await client.sendFileFromUrl(m.chat, i, '', m, '', '', { gif: true })
+            let data = await twit(url)
+            await m.reply(`Media from *${data.name} [@${data.username}]* ${'```'}${data.full_text}${'```'}\n\nTotal ${data.media.length} media` || '')
+            for (i of data.media) {
+                if (i.mediaType == 'animated_gif') {
+                    await client.sendFileFromUrl(m.chat, i.mediaUrl, '', m, '', '', { gif: true })
                 } else {
-                    await client.sendFileFromUrl(m.chat, i, '', m)
+                    await client.sendFileFromUrl(m.chat, i.mediaUrl, '', m)
                 }
             }
         } catch (error) {

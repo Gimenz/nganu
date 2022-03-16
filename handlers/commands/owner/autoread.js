@@ -1,11 +1,12 @@
 const fs = require('fs')
 
-const config = require('../../../src/config.json')
+let config = require('../../../src/config.json')
 
 module.exports = {
     tags: ['owner'],
     args: ['on|off'],
     help: ['autoread'],
+    cmd: ['autoread'],
     owner: true,
     exec: async (m, client, { body, msg, args }) => {
         try {
