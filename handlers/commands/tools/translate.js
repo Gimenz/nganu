@@ -4,7 +4,7 @@ module.exports = {
     tags: ['tools'],
     cmd: ['tr', 'translate'],
     args: ['text'],
-    cmd: ['tr', 'translate'],
+    help: ['tr'],
     exec: async (m, client, { prefix, cmd, args }) => {
         try {
             let lang = args[0]
@@ -12,11 +12,11 @@ module.exports = {
             if (m.quoted) {
                 _text = m.quoted.text
                 const tr = (await translate(_text, { to: lang })).text
-                m.reply(util.format(tr))
+                m.reply(tr)
             } else if (args.length >= 2) {
                 _text = args.slice(1).join(' ')
                 const tr = (await translate(_text, { to: lang })).text
-                m.reply(util.format(tr))
+                m.reply(tr)
             } else {
                 m.reply(`reply pesan atau masukkan text, contoh ${prefix + cmd} id i love you, not only at this time`)
             }

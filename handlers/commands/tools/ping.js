@@ -11,7 +11,7 @@ module.exports = {
     tags: ['others', 'information'],
     cmd: ['ping', 'stat'],
     help: ['ping'],
-    exec: (m, client, { prefix }) => {
+    exec: async (m, client, { prefix }) => {
         mtime = new Date(mulai.mtime)
         now = new Date()
         let check = await isLatestVersion()

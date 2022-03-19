@@ -256,10 +256,10 @@ async function isTiktokVideo(link) {
 
 async function isLatestVersion() {
 	try {
-		const { data } = await got.get('https://raw.githubusercontent.com/Gimenz/nganu/master/package.json')
+		const { body } = await got.get('https://raw.githubusercontent.com/Gimenz/nganu/master/package.json')
 		return {
 			isLatest: true,
-			version: data.version
+			version: body.version
 		}
 	} catch (error) {
 		return {
