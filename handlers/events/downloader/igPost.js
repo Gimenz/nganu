@@ -41,7 +41,7 @@ module.exports = {
                         footer,
                         templateButtons: btnMusicMeta,
                         video: { url: result.links[0].url },
-                        caption: `${idSound.title}`,
+                        caption: `Media from @${result.username}`,
                         headerType: 4
                     },
                     { quoted: m }

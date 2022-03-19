@@ -222,7 +222,7 @@ class Sticker {
      */
     static removeBG = async (input) => {
         try {
-            if (!process.env.removeBG) throw 'remove.bg api-key did not set yet'
+            if (process.env.removeBG == '') throw 'remove.bg api-key did not set yet'
             const arrayKu = process.env.removeBG.split(',')
             const response = await removeBackgroundFromImageBase64({
                 base64img: input.toString('base64'),

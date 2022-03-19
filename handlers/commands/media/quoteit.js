@@ -20,7 +20,7 @@ module.exports = {
             let _text = arg.split('|')[0]
             let wm = arg.split('|')[1]
             wm = wm ? `~ ${wm}` : ''
-            if (_text.length > 250) return m.reply('No more spaces! text quotes terlalu panjang...')
+            if (_text.length > 250) return m.reply('No more spaces! text quotes terlalu panjang... max 250 character')
             if (wm.length > 30) return m.reply('No more spaces! text watermark terlalu panjang...')
             if (m.mtype && m.mtype == 'imageMessage' || m.quoted && m.quoted.mtype && m.quoted.mtype == 'imageMessage') {
                 const message = m.quoted ? m.quoted : m

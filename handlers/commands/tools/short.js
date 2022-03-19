@@ -9,8 +9,8 @@ module.exports = {
         try {
             if (!shortenerAuth) return m.reply('shortener auth didn\'t set yet')
             if (!isUrl(url)) return m.reply('bukan url')
-            const { link } = await sID.short(url);
-            m.reply('shortened => ' + link)
+            const { data } = await sID.short(url);
+            m.reply('shortened => https://s.id/' + data.short)
         } catch (error) {
             console.log(error);
             m.reply('error')

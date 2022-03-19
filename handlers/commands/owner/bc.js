@@ -1,4 +1,4 @@
-const { delay } = require("@adiwajshing/baileys")
+const { delay, isJidGroup } = require("@adiwajshing/baileys")
 const fs = require('fs')
 
 let chatsJid = require('../../../db/usersJid.json')//JSON.parse(fs.readFileSync('../../db/usersJid.json', 'utf-8'))

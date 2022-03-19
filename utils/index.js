@@ -9,7 +9,8 @@
  * Please respect me for making this tool from the beginning.
  */
 
-const { S_WHATSAPP_NET, URL_REGEX } = require('@adiwajshing/baileys');
+const { S_WHATSAPP_NET } = require('@adiwajshing/baileys');
+let package = require('../package.json')
 const { randomBytes } = require('crypto');
 const fs = require('fs')
 const path = require('path')
@@ -253,6 +254,22 @@ async function isTiktokVideo(link) {
 	}
 }
 
+async function isLatestVersion() {
+	try {
+		const { data } = await got.get('https://raw.githubusercontent.com/Gimenz/nganu/master/package.json')
+		return {
+			isLatest: true,
+			version: data.version
+		}
+	} catch (error) {
+		return {
+			isLatest: false,
+			version: package.version,
+			error
+		}
+	}
+}
+
 function formatK(number, locale = 'id-ID') {
 	return new Intl.NumberFormat(locale, { notation: 'compact' }).format(number)
 }
@@ -316,5 +333,6 @@ module.exports = {
 	Scandir,
 	pluginLoader,
 	maskStr,
-	fetchFilesize
+	fetchFilesize,
+	isLatestVersion
 };

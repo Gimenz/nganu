@@ -13,6 +13,7 @@ module.exports = {
                 try {
                     await client.groupParticipantsUpdate(m.chat, [_user], 'add')
                 } catch (error) {
+                    m.reply('private')
                     const inviteCode = await client.groupInviteCode(m.chat)
                     let thumb;
                     try { thumb = await client.profilePictureUrl(m.chat, 'image') } catch (e) { thumb = './src/logo.jpg' }

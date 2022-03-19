@@ -1,7 +1,15 @@
 {
-    "name": "nganu",
-    "description": "a simple whatsapp bot social media downloader",
-    "repository": "https://github.com/Gimenz/nganu",
-    "logo": "https://node-js-sample.herokuapp.com/node.png",
-    "keywords": ["bot", "whatsapp-bot", "bot-wa"]
-  }
+	"name": "nganu",
+	"description": "a simple whatsapp bot social media downloader",
+	"repository": "https://github.com/Gimenz/nganu",
+	"logo": "https://node-js-sample.herokuapp.com/node.png",
+	"keywords": ["bot", "whatsapp-bot", "bot-wa"],
+	"env": {
+		"HEROKU_APP_NAME": {
+			"required": true
+		},
+		"HEROKU_PARENT_APP_NAME": {
+			"required": true
+		}
+	}
+}

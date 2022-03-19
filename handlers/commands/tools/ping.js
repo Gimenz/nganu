@@ -1,6 +1,7 @@
-const { processTime, humanFileSize } = require("../../../utils")
+const { processTime, humanFileSize, isLatestVersion } = require("../../../utils")
 const fs = require('fs')
 let mulai = fs.statSync('./src/start.txt')
+let config = require('../../../src/config.json')
 let package = require('../../../package.json')
 const os = require('os')
 let { info } = require("../../../db")
@@ -13,13 +14,19 @@ module.exports = {
     exec: (m, client, { prefix }) => {
         mtime = new Date(mulai.mtime)
         now = new Date()
+        let check = await isLatestVersion()
         let text = `💻 *Bot Information*
 • Bot Status : 🟢 Online
+• Bot Version : ${check.version} is Latest ${check.isLatest}
 • Latency : ${processTime(client.timestamp, moment())} _ms_
 • Bot Run Time : ${moment.duration((now - mtime) / 1000, 'seconds').humanize()}
 • OS Up Time : ${moment.duration(os.uptime(), 'seconds').humanize()}
 
-🌡 *${package.name} Statistics* :
+• AutoPost IG : ${config.autoPost ? '✅' : '❌'}
+• AutoRead MSG : ${config.autoRead ? '✅' : '❌'}
+• AutoTyping (_mengetik..._) : ${config.composing ? '✅' : '❌'}
+
+🌡 *Bot Statistics* :
 - Message Received : ${stats.msgRecv}
 - Message Sent : ${stats.msgSent}
 - Command HIT : ${stats.cmd}

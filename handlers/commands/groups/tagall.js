@@ -10,10 +10,15 @@ module.exports = {
     exec: async (m, client, { cmd, args }) => {
         try {
             const groupMembers = (await client.groupMetadata(m.chat)).participants
+            let type = m.quoted ? m.quoted.mtype : m.mtype
             if (cmd == 'hidetag') {
                 let text = args.join(' ')
-                if (!text) return m.reply('textnya mana?')
-                client.sendMessage(m.chat, { text, mentions: groupMembers.map(x => x.id) })
+                if (/image|video|audio|sticker/i.test(type)) {
+                    let ms = m.quoted ? m.getQuotedObj() : m
+                    await client.copyNForward(m.chat, client.cMod(m.chat, ms, text, client.user.id), true, { mentions: groupMembers.map(x => x.id) })
+                } else {
+                    client.sendMessage(m.chat, { text, mentions: groupMembers.map(x => x.id) })
+                }
             } else {
                 text = args.length >= 1 ? `@${jidDecode(m.sender).user} : ${args.join(' ')}\n` : '*Tag All Members*\n'
                 n = 1
@@ -21,7 +26,14 @@ module.exports = {
                     text += `\n*_${n}_.* @${jidDecode(i.id).user}`
                     n++
                 }
-                client.sendMessage(m.chat, { text, mentions: groupMembers.map(x => x.id) })
+
+                if (/image|video/i.test(type)) {
+                    let ms = m.quoted ? m.getQuotedObj() : m
+                    await client.copyNForward(m.chat, client.cMod(m.chat, ms, text, client.user.id, { mentions: groupMembers.map(x => x.id) }), true, { mentions: groupMembers.map(x => x.id) })
+                } else {
+                    client.sendMessage(m.chat, { text, mentions: groupMembers.map(x => x.id) })
+                }
+
             }
         } catch (error) {
             m.reply(util.format(error))
