@@ -12,7 +12,7 @@ module.exports = {
                 const res = await toAudio(buffer)
                 await client.sendFile(m.chat, res, m, { audio: true })
             } else if (m.mtype == 'templateButtonReplyMessage') {
-                let id = tempDB.filter(x => x.id == args[0])[0]
+                let id = tempDB.find(x => x.id == args.join(' '))
                 const res = await toAudio(id.url)
                 await client.sendFile(from, res, m, { document: true, mimetype: 'audio/mp3', fileName: id.title + '.mp3' })
             } else {

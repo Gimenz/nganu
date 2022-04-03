@@ -6,7 +6,7 @@ module.exports = {
     tags: ['others', 'information'],
     cmd: ['owner', 'creator'],
     help: ['owner'],
-    exec: (m, client) => {
+    exec: async (m, client) => {
         config.owner.map(async (v) => await client.sendContact(m.chat, v.split(S_WHATSAPP_NET)[0], package.author, m))
         await delay(2000)
         const btn = [

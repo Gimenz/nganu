@@ -5,17 +5,21 @@ module.exports = {
     cmd: ['tr', 'translate'],
     args: ['text'],
     help: ['tr'],
-    exec: async (m, client, { prefix, cmd, args }) => {
+    exec: async (m, client, { prefix, cmd, args, flags }) => {
         try {
             let lang = args[0]
             if (!lang) return m.reply(`code bahasa tujuan diperlukan, contoh ${prefix + cmd} id i love you, not only at this time`)
+            let options = {
+                to: lang
+            }
+            if (flags) options['from'] = flags[0]
             if (m.quoted) {
                 _text = m.quoted.text
-                const tr = (await translate(_text, { to: lang })).text
+                const tr = (await translate(_text, options)).text
                 m.reply(tr)
             } else if (args.length >= 2) {
-                _text = args.slice(1).join(' ')
-                const tr = (await translate(_text, { to: lang })).text
+                _text = args.slice(1).join(' ').replace('--' + flags[0], '')
+                const tr = (await translate(_text, options)).text
                 m.reply(tr)
             } else {
                 m.reply(`reply pesan atau masukkan text, contoh ${prefix + cmd} id i love you, not only at this time`)

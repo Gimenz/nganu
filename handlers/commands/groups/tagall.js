@@ -29,7 +29,7 @@ module.exports = {
 
                 if (/image|video/i.test(type)) {
                     let ms = m.quoted ? m.getQuotedObj() : m
-                    await client.copyNForward(m.chat, client.cMod(m.chat, ms, text, client.user.id, { mentions: groupMembers.map(x => x.id) }), true, { mentions: groupMembers.map(x => x.id) })
+                    await client.copyNForward(m.chat, client.cMod(m.chat, ms, text, client.user.id), true, { mentions: groupMembers.map(x => x.id) })
                 } else {
                     client.sendMessage(m.chat, { text, mentions: groupMembers.map(x => x.id) })
                 }

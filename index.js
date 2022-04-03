@@ -106,7 +106,6 @@ const start = async () => {
         `${color(LAUNCH_TIME_MS / 1000, '#38ef7d')}s`
     );
     let client = makeWASocket({
-        version: WAVersion,
         printQRInTerminal: true,
         logger: pino({ level: 'silent' }),
         auth: state,
