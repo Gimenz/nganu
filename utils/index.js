@@ -259,7 +259,7 @@ async function isLatestVersion() {
 		const { body } = await got.get('https://raw.githubusercontent.com/Gimenz/nganu/master/package.json')
 		return {
 			isLatest: true,
-			version: body.version
+			version: JSON.parse(body).version
 		}
 	} catch (error) {
 		return {

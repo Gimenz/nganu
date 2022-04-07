@@ -88,7 +88,6 @@ module.exports = {
             caption: _text,
             footer: global.footer,
             templateButtons: buttonsDefault,
-            location: { jpegThumbnail: (await getBuffer('./src/logo.jpg')).buffer, name: `${package.name}` },
             headerType: 4
         }, { quoted: m })
     }

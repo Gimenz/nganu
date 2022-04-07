@@ -9,7 +9,7 @@ module.exports = {
     exec: async (m, client, { args, flags }) => {
         try {
             const opt = flags.find(x => /date|views|followers|shuffle/g.test(x))
-            const data = await tik.getHashtagVideo(args.join(' '), opt ? opt : 'shuffle')
+            const data = await tik.getHashtagVideo(args.join(' ').replace('#', ''), opt ? opt : 'shuffle')
             if (data.length === 0) return m.reply('video not found')
             const { video, author } = _.sample(data)
             const tikUrl = `https://www.tiktok.com/@${author.uniqueId}/video/${video.id}`
