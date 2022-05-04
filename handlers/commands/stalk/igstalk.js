@@ -4,7 +4,7 @@ const { formatK } = require('../../../utils');
 let ig = new igApi(process.env.session_id);
 
 module.exports = {
-    tags: ['media'],
+    tags: ['stalking'],
     args: ['username'],
     cmd: ['igstalk', 'stalk'],
     help: ['igstalk'],

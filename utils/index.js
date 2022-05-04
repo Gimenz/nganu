@@ -22,6 +22,7 @@ const FormData = require('form-data')
 const { default: axios, AxiosRequestConfig } = require('axios');
 const { default: got } = require('got')
 const { fromBuffer } = require('file-type');
+const { Readable } = require('stream');
 global.axios = axios
 global.config = require('../src/config.json')
 global.API = config.api
@@ -239,13 +240,35 @@ const uploadImage = async (buffer) => {
 }
 
 /**
+ * upload file to anonfiles
+ * @param {Buffer} buffer 
+ * @returns 
+ */
+const uploadFile = async (buffer) => {
+	const { ext } = await fromBuffer(buffer);
+	function bufferToStream(Buffer) {
+		const readable = new Readable()
+		readable._read = () => { } // _read is required but you can noop it
+		readable.push(Buffer)
+		readable.push(null)
+		return readable
+	}
+	const form = new FormData();
+	form.append('file', bufferToStream(buffer), 'tmp.' + ext)
+	const { data } = await axios.post("https://api.anonfiles.com/upload", form, {
+		responseType: "json", headers: { ...form.getHeaders() }
+	});
+	return data
+}
+
+/**
  * is tiktok video url?
  * @param {string} link 
  * @returns 
  */
 async function isTiktokVideo(link) {
 	const a = await got.get(link)
-	let url = new URL(a.redirectUrls[0])
+	let url = new URL(a.url)
 	return {
 		isVideo: !isNaN(path.basename(url.pathname)),
 		isUser: path.basename(url.pathname).startsWith('@'),
@@ -294,12 +317,43 @@ const pluginLoader = (dir) => {
 		filename = path.basename(filelist, '.js')
 		try {
 			plugins[filename] = require(filelist)
+			nocache(filelist, module => console.log(color(`'${module}' changed!`)))
 		} catch (e) {
+			console.log(e);
 			delete plugins[filename]
 		}
 	}
 	return plugins
 }
+
+/**
+ * Uncache if there is file change
+ * @param {string} module Module name or path
+ * @param {function} cb <optional> 
+ */
+function nocache(module, cb = () => { }) {
+	console.log(color(`Module ${module} is now Watched`))
+	fs.watchFile(require.resolve(module), async () => {
+		await uncache(require.resolve(module))
+		cb(module)
+	})
+}
+
+/**
+ * Uncache a module
+ * @param {string} module Module name or path
+ */
+function uncache(module = '.') {
+	return new Promise((resolve, reject) => {
+		try {
+			delete require.cache[require.resolve(module)]
+			resolve()
+		} catch (e) {
+			reject(e)
+		}
+	})
+}
+
 
 /**
  * mask an string // string = st**ng
@@ -328,6 +382,7 @@ module.exports = {
 	secondsConvert,
 	randRGB,
 	uploadImage,
+	uploadFile,
 	isTiktokVideo,
 	formatK,
 	Scandir,

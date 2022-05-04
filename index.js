@@ -18,7 +18,9 @@ const {
     makeInMemoryStore,
     jidNormalizedUser,
     fetchLatestBaileysVersion,
-    getContentType
+    getContentType,
+    jidDecode,
+    delay
 } = require('@adiwajshing/baileys');
 const { Boom } = require('./node_modules/@hapi/boom')
 const _ = require('lodash')
@@ -32,8 +34,6 @@ global.config = require('./src/config.json')
 global.API = config.api
 global.owner = config.owner
 global.footer = `© ${package.name} ${new Date().getFullYear()}`
-const { SID } = require('sid-api')
-global.sID = new SID(process.env.sid_email, process.env.sid_password);
 let session;
 if (opts['server']) require('./server')
 if (opts['test']) {
@@ -60,10 +60,12 @@ const {
     bgColor,
     msgs,
     pluginLoader,
+    Scandir,
+    isLatestVersion,
 } = require('./utils');
 const { Serialize } = require('./lib/simple');
 const cmdMSG = require('./src/cmdMessage.json');
-const { statistics } = require('./db');
+const { statistics, groupManage } = require('./db');
 
 /** DB */
 if (!fs.existsSync('./db/usersJid.json')) {
@@ -71,7 +73,6 @@ if (!fs.existsSync('./db/usersJid.json')) {
 }
 
 let chatsJid = JSON.parse(fs.readFileSync('./db/usersJid.json', 'utf-8'))
-global.shortenerAuth = process.env.sid_email !== '' && process.env.sid_password !== ''
 const START_TIME = Date.now();
 fs.writeFileSync('./src/start.txt', START_TIME.toString())
 
@@ -93,10 +94,11 @@ const start = async () => {
         gradient: ['#DCE35B', '#45B649'],
         transitionGradient: true,
     });
-    const { version: WAVersion } = await fetchLatestBaileysVersion()
-    console.log(color('[SYS]', 'cyan'), `Package Version`, color(`${package.version}`, '#009FF0'));
-    console.log(color('[SYS]', 'cyan'), `WA Version`, color(WAVersion.join('.'), '#38ef7d'));
-    console.log(color('[SYS]', 'cyan'), `Loaded Plugins`, color(Object.keys(plugins).length, '#38ef7d'));
+    const { version: WAVersion, isLatest } = await fetchLatestBaileysVersion()
+    let pkg = await isLatestVersion()
+    console.log(color('[SYS]', 'cyan'), `Package Version`, color(`${package.version}`, '#009FF0'), 'Is Latest :', color(`${pkg.isLatest}`, '#f5af19'));
+    console.log(color('[SYS]', 'cyan'), `WA Version`, color(WAVersion.join('.'), '#38ef7d'), 'Is Latest :', color(`${isLatest}`, '#f5af19'));
+    console.log(color('[SYS]', 'cyan'), `Loaded Plugins ${color(Object.keys(plugins).length, '#38ef7d')} of ${color(Scandir('./handlers').length, '#f5af19')}`);
     const LAUNCH_TIME_MS = Date.now() - START_TIME;
     console.log(
         color('[SYS]', 'cyan'),
@@ -109,9 +111,11 @@ const start = async () => {
         printQRInTerminal: true,
         logger: pino({ level: 'silent' }),
         auth: state,
-        browser: Browsers.macOS('Safari')
+        browser: Browsers.macOS('Firefox')
     });
     global.client = client
+
+    store?.bind(client.ev)
 
     client.ev.on('connection.update', async (update) => {
         if (global.qr !== update.qr) {
@@ -123,7 +127,7 @@ const start = async () => {
             console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`${package.name} is Authenticating...`, '#f12711'));
         } else if (connection === 'close') {
             const log = msg => console.log(color('[SYS]', '#009FFF'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(msg, '#f64f59'));
-            const statusCode = lastDisconnect.error ? new Boom(lastDisconnect)?.output.statusCode : 0;
+            const statusCode = new Boom(lastDisconnect?.error)?.output.statusCode;
 
             console.log(lastDisconnect.error);
             if (statusCode === DisconnectReason.badSession) { log(`Bad session file, delete ${session} and run again`); start(); }
@@ -143,7 +147,49 @@ const start = async () => {
 
     client.ev.on('creds.update', () => saveState)
 
-    store.bind(client.ev)
+    // Handling groups update
+    client.ev.on('group-participants.update', async (anu) => {
+        try {
+            const botNumber = client.user.id
+            let jid = anu.id;
+            let meta = await client.groupMetadata(jid)
+            let participants = anu.participants
+
+            let json = groupManage.get(jid)
+
+            if (json.welcome.status) {
+                for (let x of participants) {
+                    if (x == botNumber) return
+                    let dp;
+                    try {
+                        dp = await client.profilePictureUrl(x, 'image')
+                    } catch (error) {
+                        dp = 'https://telegra.ph/file/3ccf9d18530dca4666801.jpg'
+                    }
+                    let textAdd = json.welcome.msg.replace('@user', `@${jidDecode(x).user}`).replace('{title}', meta.subject)
+                    let textRemove = json.leave.msg.replace('@user', `@${jidDecode(x).user}`).replace('{title}', meta.subject)
+
+                    if (anu.action == 'add' && json.welcome.status) {
+                        if (textAdd.includes('{foto}')) {
+                            client.sendMessage(jid, { image: { url: dp }, mentions: [x], caption: textAdd.replace('{foto}', '') })
+                        } else {
+                            client.sendMessage(jid, { text: textAdd, mentions: [x] })
+                        }
+                    } else if (anu.action == 'remove' && json.leave.status) {
+                        if (textRemove.includes('{foto}')) {
+                            client.sendMessage(jid, { image: { url: dp }, mentions: [x], caption: textRemove.replace('{foto}', '') })
+                        } else {
+                            client.sendMessage(jid, { text: textRemove, mentions: [x] })
+                        }
+                    } else if (anu.action == 'promote') {
+                        client.sendMessage(jid, { image: { url: dp }, mentions: [x], caption: `Selamat @${x.split('@')[0]} atas jabatan menjadi admin di *${meta.subject}*` })
+                    }
+                }
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    })
 
     client.ev.on('messages.upsert', async (msg) => {
         try {
@@ -155,24 +201,28 @@ const start = async () => {
                 statistics('msgRecv')
             }
             if (m.key.fromMe) return
+            if (config.a) {
+                client.sendReadReceipt(m.key.remoteJid, m.key.participant, [m.key.id])
+            }
+            if (m.key && isJidStatusBroadcast(m.key.remoteJid)) return
             const from = m.key.remoteJid;
             let type = client.msgType = getContentType(m.message);
             Serialize(client, m)
             let t = client.timestamp = m.messageTimestamp
             const body = (type === 'conversation') ? m.message.conversation : (type == 'imageMessage') ? m.message.imageMessage.caption : (type == 'videoMessage') ? m.message.videoMessage.caption : (type == 'extendedTextMessage') ? m.message.extendedTextMessage.text : (type == 'buttonsResponseMessage') ? m.message.buttonsResponseMessage.selectedButtonId : (type == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (type == 'templateButtonReplyMessage') ? m.message.templateButtonReplyMessage.selectedId : (type === 'messageContextInfo') ? (m.message.listResponseMessage.singleSelectReply.selectedRowId || m.message.buttonsResponseMessage.selectedButtonId || m.text) : ''
 
-            let isGroupMsg = isJidGroup(from)
+            let isGroupMsg = isJidGroup(m.chat)
             let sender = m.sender
             const isOwner = config.owner.includes(sender)
             let pushname = client.pushname = m.pushName
-            const botNumber = client.user.id
-            const groupId = isGroupMsg ? from : ''
-            let groupMetadata = isGroupMsg ? await client.groupMetadata(groupId) : {}
+            const botNumber = jidNormalizedUser(client.user.id)
+            let groupMetadata = isGroupMsg ? store?.groupMetadata[m.chat] !== undefined ? store.groupMetadata[m.chat] : await store.fetchGroupMetadata(m.chat, client) : {}
             let groupMembers = isGroupMsg ? groupMetadata.participants : []
             let groupAdmins = groupMembers.filter(v => v.admin !== null).map(x => x.id)
-            let isGroupAdmin = groupAdmins.includes(sender)
-            let isBotGroupAdmin = groupAdmins.includes(jidNormalizedUser(botNumber))
+            let isGroupAdmin = isOwner || groupAdmins.includes(sender)
+            let isBotGroupAdmin = groupAdmins.includes(botNumber)
             let formattedTitle = isGroupMsg ? groupMetadata.subject : ''
+            let groupData = isGroupMsg ? groupManage.get(m.chat) : {}
 
             // let _plugin = []
             // for (let _pluginName in plugins) {
@@ -185,10 +235,10 @@ const start = async () => {
             // let cPrefix = _plugin.filter(x => x.customPrefix && x.cmd).map(x => x.cmd).flat(2)
             // let _prefix = cPrefix.filter(x => new RegExp(str2Regex(x)).test(body)).length ? cPrefix.filter(x => new RegExp(str2Regex(x)).test(body))[0] : global.prefix
             const arg = body.substring(body.indexOf(' ') + 1)
-            let args = body.trim().split(/ +/).slice(1);
-            let flags = [];
-            let isCmd = client.isCmd = body.startsWith(global.prefix);
-            let cmd = client.cmd = isCmd ? body.slice(1).trim().split(/ +/).shift().toLowerCase() : null
+            const args = body.trim().split(/ +/).slice(1);
+            const flags = [];
+            const isCmd = client.isCmd = body.startsWith(global.prefix);
+            const cmd = client.cmd = isCmd ? body.slice(1).trim().split(/ +/).shift().toLowerCase() : null
             let url = args.length !== 0 ? args[0] : '';
 
             for (let i of args) {
@@ -206,12 +256,6 @@ const start = async () => {
 
             // store user jid to json file
             if (isCmd) {
-                if (isGroupMsg) {
-                    if (!chatsJid.some((x => x == from))) {
-                        chatsJid.push(from)
-                        fs.writeFileSync('./db/usersJid.json', JSON.stringify(chatsJid), 'utf-8')
-                    }
-                }
                 if (!chatsJid.some((x => x == sender))) {
                     chatsJid.push(sender)
                     fs.writeFileSync('./db/usersJid.json', JSON.stringify(chatsJid), 'utf-8')
@@ -232,13 +276,13 @@ const start = async () => {
                 console.log(color('[CMD]'), color(moment(t * 1000).format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), color(`${cmd} [${args.length}]`), color(`${msgs(body)}`, 'cyan'), '~> from', gradient.teen(pushname), 'in', gradient.fruit(formattedTitle))
             }
 
+            if (isGroupMsg) {
+                groupManage.add(m.chat, formattedTitle)
+            }
+
             if (isCmd && config.composing) {
                 await client.presenceSubscribe(from)
                 await client.sendPresenceUpdate('composing', from)
-            }
-
-            if (config.autoRead) {
-                client.sendReadReceipt(from, sender, [m.key.id])
             }
 
             for (let name in plugins) {
@@ -263,26 +307,58 @@ const start = async () => {
                     } else if (typeof plugin.owner != 'undefined' && plugin.owner && !isOwner) {
                         m.reply(cmdMSG.owner)
                         continue
+                    } else if (typeof plugin.groupMuteAllowed == 'undefined' && isGroupMsg && groupData.mute) {
+                        m.reply(`bot tidak aktif di group ini, silahkan aktifkan ${prefix} on`)
+                        continue
                     }
                     await plugin.exec(m, client, { body, prefix, args, arg, cmd, url, flags, msg, plugins })
                     statistics('cmd')
                     break
                 } else if (plugin.regex instanceof RegExp && plugin.regex.test(body) && !m.isBot) {
-                    logEvent(body.match(plugin.regex)[0])
-                    await plugin.exec(m, client, { body, logEvent, prefix, args, cmd, url })
-                    statistics('autodownload')
+                    if (typeof plugin.groupMuteAllowed == 'undefined' && isGroupMsg && groupData.mute) {
+                        m.reply(`bot tidak aktif di group ini, silahkan aktifkan ${prefix} on`)
+                        continue
+                    } else {
+                        logEvent(body.match(plugin.regex)[0])
+                        await plugin.exec(m, client, { body, logEvent, prefix, args, cmd, url })
+                        statistics('autodownload')
+                    }
                 } else if (plugin.startsWith && body.startsWith(plugin.startsWith) && !m.isBot) {
                     if (typeof plugin.owner != 'undefined' && plugin.owner && !isOwner) return
                     if (typeof plugin.admin != 'undefined' && plugin.admin && !isGroupAdmin) return
                     if (typeof plugin.botAdmin != 'undefined' && plugin.botAdmin && !isBotGroupAdmin) return
                     if (typeof plugin.group != 'undefined' && plugin.group && !isGroupMsg) return
+                    if (typeof plugin.groupMuteAllowed == 'undefined' && isGroupMsg && groupData.mute) return
                     await plugin.exec(m, client, { body, prefix, args, arg, cmd, url, flags, msg, plugins })
                     statistics('cmd')
+                } else if (plugin.groupEvent) {
+                    if (typeof plugin.owner != 'undefined' && plugin.owner && !isOwner) return m.reply(cmdMSG.owner)
+                    if (typeof plugin.admin != 'undefined' && plugin.admin && !isGroupAdmin) return m.reply(cmdMSG.notGroupAdmin)
+                    if (typeof plugin.botAdmin != 'undefined' && plugin.botAdmin && !isBotGroupAdmin) return m.reply(cmdMSG.groupMsg)
+                    if (typeof plugin.group != 'undefined' && plugin.group && !isGroupMsg) return m.reply(cmdMSG.groupMsg)
+                    if (typeof plugin.groupMuteAllowed == 'undefined' && isGroupMsg && groupData.mute) return
+                    await plugin.exec(m, client, { body, prefix, args, arg, cmd, url, flags, msg, plugins, formattedTitle })
                 }
             }
 
         } catch (error) {
             console.log(color('[ERROR]', 'red'), color(moment().format('DD/MM/YY HH:mm:ss'), '#A1FFCE'), error);
+        }
+    })
+
+    client.ws.on('CB:call', async call => {
+        if (call.content[0].tag == 'offer') {
+            const callerJid = call.content[0].attrs['call-creator']
+            const { version, platform, notify, t } = call.attrs
+            const caption = `Wahai _${notify || 'user botku'}_ , kamu telah menelpon bot pada *${moment(t * 1000).format('LLL')}* menggunakan device *${platform}* kamu, sehingga kamu diblokir oleh bot secara otomatis.\nsilahkan chat owner bot untuk membuka blok`
+            await delay(3000)
+            for (let i = 0; i < config.owner.length; i++) {
+                await client.sendContact(callerJid, config.owner[i].split(S_WHATSAPP_NET)[0], `${config.owner.length < 1 ? 'Owner' : `Owner ${i + 1}`}`)
+            }
+            await delay(7000)
+            await client.sendMessage(callerJid, { text: caption }).then(async () => {
+                await client.updateBlockStatus(callerJid, 'block')
+            })
         }
     })
 };

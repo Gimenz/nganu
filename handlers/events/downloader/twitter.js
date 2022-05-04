@@ -7,7 +7,7 @@ module.exports = {
     exec: async (m, client, { body }) => {
         try {
             let url = body.match(regex)[0]
-            let data = await twit(url)
+            let data = await twit.download(url)
             await m.reply(`Media from *${data.name} [@${data.username}]* ${'```'}${data.full_text}${'```'}\n\nTotal ${data.media.length} media` || '')
             for (i of data.media) {
                 if (i.mediaType == 'animated_gif') {

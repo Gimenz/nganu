@@ -61,7 +61,8 @@ module.exports = {
 
                 let idMp3 = shrt(res.data.audio.primary, { title: `${detil.name.transliteration.id} - ${res.data.number.inSurah}`, tiktokAudio: true })
                 const btnCover = [
-                    { quickReplyButton: { displayText: `Audio`, id: `${prefix}sendthis ${idMp3.id}` } },
+                    { quickReplyButton: { displayText: `Audio (💾)`, id: `${prefix}sendthis ${idMp3.id}` } },
+                    { quickReplyButton: { displayText: `Audio (🎤)`, id: `${prefix}sendthis ${idMp3.id} --vn` } },
                 ]
                 let buttonMessage = {
                     text: tex,

@@ -18,9 +18,9 @@ module.exports = {
                     await client.sendMessage(m.chat, { image: removed, mimetype: 'image/png', caption: 'removed' }, { quoted: m })
                 }
             } else if (m.quoted && m.quoted.mtype == 'stickerMessage') {
-                const removed = await Sticker.removeBG(await m.quoted.download())
+                const removed = await Sticker.simpleRemoveBg(await m.quoted.download())
                 const data = new Sticker(removed, { packname: `${package.name} #${stats.sticker}`, author: package.author })
-                await client.sendMessage(from, await data.toMessage(), { quoted: m })
+                await client.sendMessage(m.chat, await data.toMessage(), { quoted: m })
                 statistics('sticker')
             } else {
                 m.reply(`send/reply image. example :\n${prefix + cmd}\n\ndocument result use --doc`)

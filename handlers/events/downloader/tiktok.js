@@ -1,4 +1,5 @@
 const { statistics } = require("../../../db")
+const { SimpleTikApi } = require("../../../lib/tiktok")
 const { isTiktokVideo, fetchAPI, formatK, shrt } = require("../../../utils")
 
 module.exports = {
@@ -10,18 +11,20 @@ module.exports = {
             m.reply('proses')
             const check = await isTiktokVideo(url)
             if (!check.isVideo || check.isUser) {
-                const { result } = await fetchAPI('masgi', '/tiktok/user.php?u=' + check.pathname.split('@')[1])
+                const { UserModule } = await SimpleTikApi.user(check.pathname.split('@')[1])
+                const user = Object.values(UserModule.users)[1]
+                const stats = Object.values(UserModule.stats)[1]
                 const caption = `*TikTok Profile*\n\n` +
-                    `➤ *Username :* @${result.user.uniqueId}\n` +
-                    `➤ *Nickname :* ${result.user.nickname}\n` +
-                    `➤ *Private :* ${result.user.privateAccount ? '✅' : '❌'}\n` +
-                    `➤ *Followers :* ${formatK(result.stats.followerCount)}\n` +
-                    `➤ *Following :* ${formatK(result.stats.followingCount)}\n` +
-                    `➤ *Total Hearts :* ${formatK(result.stats.heartCount)}\n` +
-                    `➤ *Total Videos :* ${formatK(result.stats.videoCount)}\n` +
-                    `➤ *Created on :* ${moment(result.user.createTime * 1000).format('DD/MM/YY HH:mm:ss')}\n` +
-                    `➤ *Bio :* ${result.user.signature}`
-                await client.sendFileFromUrl(m.chat, result.user.avatarLarger, caption, m)
+                    `➤ *Username :* @${user.uniqueId}\n` +
+                    `➤ *Nickname :* ${user.nickname}\n` +
+                    `➤ *Private :* ${user.privateAccount ? '✅' : '❌'}\n` +
+                    `➤ *Followers :* ${formatK(stats.followerCount)}\n` +
+                    `➤ *Following :* ${formatK(stats.followingCount)}\n` +
+                    `➤ *Total Hearts :* ${formatK(stats.heartCount)}\n` +
+                    `➤ *Total Videos :* ${formatK(stats.videoCount)}\n` +
+                    `➤ *Created on :* ${moment(user.createTime * 1000).format('DD/MM/YY HH:mm:ss')}\n` +
+                    `➤ *Bio :* ${user.signature}`
+                await client.sendFileFromUrl(m.chat, user.avatarLarger, caption, m)
             } else {
                 const data = await fetchAPI('masgi', '/tiktok/?url=' + url)
                 let { author, video, desc, music } = data.aweme_details[0]
@@ -31,7 +34,7 @@ module.exports = {
                 const btnCover = [
                     { quickReplyButton: { displayText: `Original Sound`, id: `${prefix}sendthis ${idMp3.id}` } },
                     { quickReplyButton: { displayText: `Extract Audio`, id: `${prefix}tomp3 ${idVideo.id}` } },
-                    { urlButton: { displayText: `⏬ Download in Browser`, url: `${shortenerAuth ? 'https://s.id/' + (await sID.short(idVideo.url)).data.short : idVideo.url}` } }
+                    { urlButton: { displayText: `⏬ Download in Browser`, url: `idVideo.url}` } }
                 ]
                 let buttonMessage = {
                     caption,

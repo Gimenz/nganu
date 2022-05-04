@@ -1,4 +1,5 @@
-const { isUrl } = require("../../../utils");
+const { isUrl, fetchAPI } = require("../../../utils");
+const FormData = require('form-data')
 
 module.exports = {
     tags: ['tools'],
@@ -7,10 +8,17 @@ module.exports = {
     help: ['short'],
     exec: async (m, client, { url }) => {
         try {
-            if (!shortenerAuth) return m.reply('shortener auth didn\'t set yet')
             if (!isUrl(url)) return m.reply('bukan url')
-            const { data } = await sID.short(url);
-            m.reply('shortened => https://s.id/' + data.short)
+            const form = new FormData()
+            form.append('url', url)
+            const data = await fetchAPI(global.API['masgi'], '/s.php', {
+                method: 'POST',
+                headers: {
+                    ...form.getHeaders()
+                },
+                data: form
+            })
+            m.reply('shortened => ' + data.url)
         } catch (error) {
             console.log(error);
             m.reply('error')

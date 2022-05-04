@@ -20,7 +20,7 @@ module.exports = {
                 await client.groupSettingUpdate(m.chat, 'not_announcement')
                 m.reply('success')
             } else if (args[0] === 'image' || args[0] === 'dp') {
-                if (m.mtype == 'imageMessage' || m.quoted.type == 'imageMessage') {
+                if (m.mtype == 'imageMessage' || m.quoted && m.quoted.mtype == 'imageMessage') {
                     const message = m.quoted ? m.quoted : m
                     const buffer = await client.downloadMediaMessage(message)
                     await client.updateProfilePicture(m.chat, buffer)

@@ -17,8 +17,11 @@ const { Image } = require('node-webpmux');
 const { Exif } = require('./exif');
 const { randomBytes } = require('crypto');
 const { isUrl, getBuffer, fetchAPI } = require('./index');
+const { registerFont, createCanvas } = require("canvas");
+const { default: canvasTxt } = require('canvas-txt');
 const { removeBackgroundFromImageBase64, removeBackgroundFromImageUrl, removeBackgroundFromImageFile } = require('remove.bg')
 const { EmojiAPI } = require("emoji-api");
+const EzGif = new (require('../lib/ezgif'));
 const emo = new EmojiAPI();
 //ffmpeg.setFfmpegPath("C:/ffmpeg/bin/ffmpeg.exe");
 
@@ -208,7 +211,7 @@ class Sticker {
      * @returns 
      */
     static emoji = async (emoji, vendor = 'apple') => {
-        const res = await emo.get(emoji)
+        const res = await emo.get(emoji, true)
         return res.images.find(x => x.vendor.toLowerCase().includes(vendor.toLowerCase()))
     }
 
@@ -236,6 +239,40 @@ class Sticker {
         }
     }
 
+    static ttp = (text) => {
+        registerFont('./src/font/ObelixProBIt-cyr.ttf', { family: 'pg' })
+        const canvas = createCanvas(512, 512);
+        const ctx = canvas.getContext("2d");
+
+        // alpha bg
+        ctx.fillStyle = "rgba(0,0,0,0)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        text = wrapText(text, calculateCircumference(text.length))
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "black"
+        canvasTxt.font = 'pg'
+        canvasTxt.align = 'center'
+        canvasTxt.strokeWidth = 1.5
+        canvasTxt.lineHeight = null
+        canvasTxt.fontSize = getFontSizeToFit(ctx, text, canvas.width, canvas.height);
+        canvasTxt.drawText(ctx, text, 0, 0, 512, 512)
+        return canvas.toBuffer()
+    }
+
+    /**
+     * create animated text
+     * @param {string} text 
+     * @returns {Promise<Buffer>}
+     */
+    static attp = async (text) => {
+        const data = await fetchAPI('https://xteam.xyz', '/attp?file&text=' + text, {
+            responseType: 'arraybuffer'
+        })
+
+        return data
+    }
+
     /**
      * remove image background and convert it into WASticker WebP
      * @param {Buffer} input 
@@ -248,6 +285,26 @@ class Sticker {
         } catch (error) {
             throw error
         }
+    }
+
+    /**
+     * simple method to remove background without Api-Keys [FREE]
+     * @param {Buffer} input 
+     */
+    static simpleRemoveBg = async (input) => {
+        if (!Buffer.isBuffer(input)) throw 'Not a Buffer'
+        // copied from https://github.com/open-wa/wa-automate-nodejs/blob/master/src/api/Client.ts
+        const { data } = await axios.post('https://sticker-api.openwa.dev/prepareWebp', {
+            image: input.toString('base64'),
+            stickerMetadata: {
+                removebg: true
+            }
+        }, {
+            maxBodyLength: 20000000, // 20mb request file limit
+            maxContentLength: 1500000 // 1.5mb response body limit
+        })
+
+        return Buffer.from(data.webpBase64, 'base64')
     }
 
     /**
@@ -334,20 +391,43 @@ class Sticker {
     }
 
     /**
+     * is animated Buffer?
+     * @param {Buffer} buffer 
+     * @returns 
+     */
+    _isAnimated = (buffer) => {
+        var ANIM = [0x41, 0x4E, 0x49, 0x4D]
+        for (var i = 0; i < buffer.length; i++) {
+            for (var j = 0; j < ANIM.length; j++) {
+                if (buffer[i + j] !== ANIM[j]) {
+                    break
+                }
+            }
+            if (j === ANIM.length) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
      * create WASticker with metadata
      * @returns {Promise<Buffer>} WebP Buffer WASticker
      */
     build = async () => {
         const data = await this._parse()
         const mime = await this._getMimeType(data);
+        const isWebP = mime.includes('webp')
         const isVideo = mime.startsWith('video')
         const media = isVideo
             ? await this.processAnimated(data)
-            : this.crop === 'nobg'
-                ? await this.processNoBG(data)
-                : Object.keys(cropType).includes(this.crop)
-                    ? await this.cropImage(data)
-                    : await this.processImage(data)
+            : isWebP ?
+                data
+                : this.crop === 'nobg'
+                    ? await this.processNoBG(data)
+                    : Object.keys(cropType).includes(this.crop)
+                        ? await this.cropImage(data)
+                        : await this.processImage(data)
         return await this.addMetadata(media)
     }
 
@@ -382,6 +462,20 @@ class Sticker {
         const exif = img.exif?.toString('utf-8') ?? '{}'
         return JSON.parse(exif.substring(exif.indexOf('{'), exif.lastIndexOf('}') + 1) ?? '{}')
     }
+
+    /**
+     * Convert webp File to Buffer
+     * @param {Buffer} buffer 
+     * @param {string} fileType 
+     * @returns 
+     */
+    static async toVideo(buffer, fileType = 'webp') {
+        const savePath = `./temp/sticker_${randomBytes(3).toString('hex')}.${fileType}`
+        fs.writeFileSync(savePath, buffer)
+        const res = await EzGif.WebP2mp4(savePath)
+        if (isUrl(res)) fs.unlinkSync(savePath)
+        return res
+    }
 }
 
 module.exports = {
@@ -389,18 +483,44 @@ module.exports = {
     cropStyle
 };
 
-function filterText(text) {
-    // Given a text, split it into an array using the seperator
-    // Then join it back into a string with the join item inbetween each element
-    // This is a crude way to replacAll(thing to replace, thing to replace with)
-    let filteredText = text.split('_').join('__');
-    filteredText = filteredText.split(' ').join('_');
-    filteredText = filteredText.split('?').join('~q');
-    filteredText = filteredText.split('%').join('~p');
-    filteredText = filteredText.split('#').join('~h');
-    filteredText = filteredText.split('/').join('~s');
-    filteredText = filteredText.split('"').join('\'\'');
-    filteredText = filteredText.split('-').join('--');
+function wrapText(input, width) {
+    width = parseInt(width) || 80;
+    let res = []
+        , cLine = ""
+        , words = input.split(" ")
+        ;
 
-    return filteredText;
+    for (let i = 0; i < words.length; ++i) {
+        let cWord = words[i];
+        if ((cLine + cWord).length <= width) {
+            cLine += (cLine ? " " : "") + cWord;
+        } else {
+            res.push(cLine);
+            cLine = cWord;
+        }
+    }
+
+    if (cLine) {
+        res.push(cLine);
+    }
+
+    if (res[0] == '') {
+        return res.slice(1).join("\n");
+    } else {
+        return res.join("\n");
+    }
+};
+
+function calculateCircumference(radius) {
+    return Math.floor(Math.LN2 / Math.PI * radius);
+}
+
+function getFontSizeToFit(ctx, text, width, height) {
+    let fitFontWidth = Number.MAX_VALUE
+    const lines = text.match(/[^\r\n]+/g);
+    lines.forEach(line => {
+        fitFontWidth = Math.min(fitFontWidth, (width * 2) / ctx.measureText(line).width)
+    })
+    let fitFontHeight = height / (lines.length * 1.5); // if you want more spacing between line, you can increase this value
+    return Math.min(fitFontHeight, fitFontWidth) * 2
 }

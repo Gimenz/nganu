@@ -14,7 +14,7 @@ module.exports = {
             } else if (m.mtype == 'templateButtonReplyMessage') {
                 let id = tempDB.find(x => x.id == args.join(' '))
                 const res = await toAudio(id.url)
-                await client.sendFile(from, res, m, { document: true, mimetype: 'audio/mp3', fileName: id.title + '.mp3' })
+                await client.sendFile(m.chat, res, m, { document: true, mimetype: 'audio/mp3', fileName: id.title + '.mp3' })
             } else {
                 m.reply(`reply a video with caption ${prefix}${cmd}`)
             }

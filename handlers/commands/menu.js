@@ -85,7 +85,7 @@ module.exports = {
             { quickReplyButton: { displayText: `☎ Owner`, id: `${prefix}owner` } },
         ]
         client.sendMessage(m.chat, {
-            caption: _text,
+            text: _text,
             footer: global.footer,
             templateButtons: buttonsDefault,
             headerType: 4

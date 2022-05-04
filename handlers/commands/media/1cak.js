@@ -17,6 +17,7 @@ module.exports = {
     exec: async (m, client, { prefix, flags, cmd, args, body, url }) => {
         try {
             if (args[0] == 'search') {
+                if (args.slice(1).length < 1) return m.reply('masukan query')
                 let key = args.slice(1).join(' ')
                 let res = await jancok.search(key)
                 let media = _.sample(res)
@@ -41,6 +42,8 @@ module.exports = {
                 caption += `\n*~* 🔞 : ${media.nsfw ? '✅' : '❌'}`
                 caption += `\n*~* 🔗 : ${media.post}`
                 await client.sendFileFromUrl(m.chat, media.media, caption, m, '', media.gif ? 'mp4' : 'jpeg', { viewOnce: true }, { headers })
+            } else {
+                m.reply(`masukkan salah satu section\ncontoh : ${prefix}${cmd.match(/1cak|wancak/g)[0]} section\n\nlist section : \n-${re.split('|').join(`\n-`)}`)
             }
         } catch (error) {
             m.reply(util.format(error));
