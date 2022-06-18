@@ -3,7 +3,7 @@ services:
   web:
     build: .
     ports:
-      - "3000"
+      - "8000:3000"
     volumes:
       - .:/code
       - logvolume01:/var/log
