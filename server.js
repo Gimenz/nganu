@@ -76,6 +76,15 @@ app.get('/send', async (req, res, next) => {
     console.log(color(`[SEND] send message to ${id}`, 'green') + color(`${PORT}`, 'yellow'))
 })
 
+app.get('/user', async (req, res, next) => {
+    try {
+        const user = await client.user
+        res.status(200).jsonp(user)
+    } catch (error) {
+        
+    }
+})
+
 const qrPrint = (qr) => {
     app.get('/qr', async (req, res) => {
         res.setHeader("content-type", "image/png")

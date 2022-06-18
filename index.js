@@ -20,7 +20,9 @@ const {
     fetchLatestBaileysVersion,
     getContentType,
     jidDecode,
-    delay
+    delay,
+    isJidStatusBroadcast,
+    useMultiFileAuthState
 } = require('@adiwajshing/baileys');
 const { Boom } = require('./node_modules/@hapi/boom')
 const _ = require('lodash')
@@ -37,11 +39,10 @@ global.footer = `© ${package.name} ${new Date().getFullYear()}`
 let session;
 if (opts['server']) require('./server')
 if (opts['test']) {
-    session = './test-session.json'
+    session = 'session/test'
 } else {
-    session = './session.json'
+    session = 'session/main'
 }
-const { state, saveState } = useSingleFileAuthState(session);
 
 // the store maintains the data of the WA connection in memory
 // can be written out to a file & read from it
@@ -107,6 +108,7 @@ const start = async () => {
         `${color(Object.keys(store.messages).length, '#009FF0')} messages in ` +
         `${color(LAUNCH_TIME_MS / 1000, '#38ef7d')}s`
     );
+    const { state, saveCreds } = await useMultiFileAuthState(session);
     let client = makeWASocket({
         printQRInTerminal: true,
         logger: pino({ level: 'silent' }),
@@ -145,7 +147,7 @@ const start = async () => {
         }
     });
 
-    client.ev.on('creds.update', () => saveState)
+    client.ev.on('creds.update', () => saveCreds)
 
     // Handling groups update
     client.ev.on('group-participants.update', async (anu) => {
@@ -201,7 +203,7 @@ const start = async () => {
                 statistics('msgRecv')
             }
             if (m.key.fromMe) return
-            if (config.a) {
+            if (config.autoRead) {
                 client.sendReadReceipt(m.key.remoteJid, m.key.participant, [m.key.id])
             }
             if (m.key && isJidStatusBroadcast(m.key.remoteJid)) return
@@ -222,7 +224,7 @@ const start = async () => {
             let isGroupAdmin = isOwner || groupAdmins.includes(sender)
             let isBotGroupAdmin = groupAdmins.includes(botNumber)
             let formattedTitle = isGroupMsg ? groupMetadata.subject : ''
-            let groupData = isGroupMsg ? groupManage.get(m.chat) : {}
+            let groupData = isGroupMsg ? groupManage.get(m.chat) == undefined ? groupManage.add(m.chat, formattedTitle) : groupManage.get(m.chat) : {}
 
             // let _plugin = []
             // for (let _pluginName in plugins) {
@@ -333,8 +335,8 @@ const start = async () => {
                     statistics('cmd')
                 } else if (plugin.groupEvent) {
                     if (typeof plugin.owner != 'undefined' && plugin.owner && !isOwner) return m.reply(cmdMSG.owner)
-                    if (typeof plugin.admin != 'undefined' && plugin.admin && !isGroupAdmin) return m.reply(cmdMSG.notGroupAdmin)
-                    if (typeof plugin.botAdmin != 'undefined' && plugin.botAdmin && !isBotGroupAdmin) return m.reply(cmdMSG.groupMsg)
+                    if (typeof plugin.admin != 'undefined' && plugin.admin && isGroupMsg && !isGroupAdmin) return m.reply(cmdMSG.notGroupAdmin)
+                    if (typeof plugin.botAdmin != 'undefined' && plugin.botAdmin && groupData.antilink && isGroupMsg && !isBotGroupAdmin) return m.reply(cmdMSG.botNotAdmin)
                     if (typeof plugin.group != 'undefined' && plugin.group && !isGroupMsg) return m.reply(cmdMSG.groupMsg)
                     if (typeof plugin.groupMuteAllowed == 'undefined' && isGroupMsg && groupData.mute) return
                     await plugin.exec(m, client, { body, prefix, args, arg, cmd, url, flags, msg, plugins, formattedTitle })
