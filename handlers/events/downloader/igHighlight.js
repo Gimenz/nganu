@@ -1,4 +1,4 @@
-require('dotenv').config()
+let config = require('../../../src/config.json')
 const { default: axios } = require('axios')
 const { igApi } = require("insta-fetcher");
 const { statistics } = require('../../../db');

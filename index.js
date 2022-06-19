@@ -8,7 +8,6 @@
  * If you want to be appreciated by others, then don't change anything in this script.
  * Please respect me for making this tool from the beginning.
  */
-require('dotenv').config()
 const {
     default: makeWASocket,
     DisconnectReason,
@@ -44,6 +43,7 @@ if (opts['test']) {
     session = 'session/main'
 }
 
+const msgRetryCounterMap = {}
 // the store maintains the data of the WA connection in memory
 // can be written out to a file & read from it
 const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
@@ -110,8 +110,10 @@ const start = async () => {
     );
     const { state, saveCreds } = await useMultiFileAuthState(session);
     let client = makeWASocket({
+        version: WAVersion,
         printQRInTerminal: true,
         logger: pino({ level: 'silent' }),
+        msgRetryCounterMap,
         auth: state,
         browser: Browsers.macOS('Firefox')
     });
@@ -147,7 +149,7 @@ const start = async () => {
         }
     });
 
-    client.ev.on('creds.update', () => saveCreds)
+    client.ev.on('creds.update', saveCreds)
 
     // Handling groups update
     client.ev.on('group-participants.update', async (anu) => {

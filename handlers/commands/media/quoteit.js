@@ -1,9 +1,8 @@
-require('dotenv').config()
 const { igApi } = require("insta-fetcher");
-let ig = new igApi(process.env.session_id)
+const config = require('../../../src/config.json')
+let ig = new igApi(config.session_id)
 const { drawImage } = require("../../../lib/quoteGen");
 const { getBuffer, maskStr } = require("../../../utils");
-const config = require('../../../src/config.json')
 const package = require('../../../package.json');
 const { jidDecode } = require('@adiwajshing/baileys');
 

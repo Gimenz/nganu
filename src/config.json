@@ -1,9 +1,15 @@
 {
-	"owner": ["6285236189413@s.whatsapp.net"],
-	"api": {
-		"masgi": "https://masgimenz.my.id"
-	},
-	"autoPost": false,
-	"autoRead": true,
-	"composing": true
+  "owner": [
+    "6285236189413@s.whatsapp.net"
+  ],
+  "api": {
+    "masgi": "https://masgimenz.my.id"
+  },
+  "autoPost": false,
+  "autoRead": true,
+  "composing": true,
+  "PORT": 3000,
+  "session_id": "",
+  "removeBG": "123",
+  "musixMatch": ""
 }

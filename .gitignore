@@ -1,5 +1,6 @@
 view
 db/*
+session/*
 !db/index.js
 !.gitkeep
 temp

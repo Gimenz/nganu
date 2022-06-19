@@ -1,8 +1,8 @@
-require('dotenv').config()
+let config = require('../../../src/config.json')
 const { igApi, shortcodeFormatter, IGPostRegex } = require("insta-fetcher");
 const { statistics } = require('../../../db');
 const { shrt, fetchFilesize } = require('../../../utils');
-let ig = new igApi(process.env.session_id)
+let ig = new igApi(config.session_id)
 
 module.exports = {
     regex: IGPostRegex,

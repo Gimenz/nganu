@@ -1,6 +1,6 @@
-require('dotenv').config()
+let config = require('../../../src/config.json')
 const { igApi } = require("insta-fetcher");
-let ig = new igApi(process.env.session_id)
+let ig = new igApi(config.session_id)
 let storyRegExp = new RegExp(/https:\/\/(www\.)?instagram\.com\/stories\/.+/g)
 
 module.exports = {
