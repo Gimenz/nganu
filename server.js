@@ -92,14 +92,15 @@ app.get('/user', async (req, res, next) => {
 
 app.get('/set', async (req, res, next) => {
     const acceptable = ['session_id', 'removeBG', 'musixMatch']
-
+    console.log(req.query);
     const mode = Object.keys(req.query)[0]
-    const value = Object.values(req.query)[0]
+    let value = Object.values(req.query)[0]
 
     if (!acceptable.includes(mode)) return res.status(401).jsonp({
         status: false,
         'message': 'mode not acceptable! => only ' + acceptable.join(', ')
     })
+    if (mode == 'session_id') value = encodeURIComponent(value);
     config[mode] = value
     fs.writeFileSync('./src/config.json', JSON.stringify(config, null, 2))
     res.send(value)
