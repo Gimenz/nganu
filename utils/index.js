@@ -389,5 +389,6 @@ module.exports = {
 	pluginLoader,
 	maskStr,
 	fetchFilesize,
-	isLatestVersion
+	isLatestVersion,
+	nocache
 };

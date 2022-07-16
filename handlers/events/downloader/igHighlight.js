@@ -1,9 +1,10 @@
-let config = require('../../../src/config.json')
 const { default: axios } = require('axios')
 const { igApi } = require("insta-fetcher");
 const { statistics } = require('../../../db');
 const { shrt, fetchFilesize } = require('../../../utils');
-let ig = new igApi(process.env.session_id)
+const { configHandler } = require("../../../db");
+let config = configHandler.get()
+let ig = new igApi(config.session_id)
 const Regex = /https:\/\/www\.instagram\.com\/s\/(.*?)\?story_media_id=([\w-]+)/g
 
 module.exports = {

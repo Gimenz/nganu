@@ -1,7 +1,8 @@
-let config = require('../../../src/config.json')
 const { igApi, shortcodeFormatter, IGPostRegex } = require("insta-fetcher");
 const { statistics } = require('../../../db');
 const { shrt, fetchFilesize } = require('../../../utils');
+const { configHandler } = require("../../../db");
+let config = configHandler.get()
 let ig = new igApi(config.session_id)
 
 module.exports = {

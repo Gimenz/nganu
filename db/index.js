@@ -19,6 +19,23 @@ if (!db.exists('/groups')) db.push('/groups/123-456@g.us', {
     mute: false
 })
 if (!db.exists('/afk')) db.push('/afk[]', { jid: '123@c.us', groupId: '123-456@g.us', groupName: 'jirolu', timestamp: Date.now(), reason: 'ngising' })
+if (!db.exists('/config')) db.push('/config', {
+    session_id: '',
+    removeBG: '',
+    musixMatch: ''
+})
+
+exports.configHandler = {
+    get: () => {
+        let data = db.getData('/config')
+        return data
+    },
+    update: (key, value) => {
+        let data = db.getData('/config')
+        data[key] = value
+        db.push('/config', data)
+    }
+}
 
 /**
  * 

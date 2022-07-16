@@ -22,6 +22,7 @@ const { resizeImage } = require('./lib/converter')
 const { isJidUser, isJidGroup } = require('@adiwajshing/baileys')
 global.qr = '';
 let config = require('./src/config.json');
+const { configHandler } = require('./db');
 
 app.set('json spaces', 2);
 app.use(express.json());
@@ -102,7 +103,7 @@ app.get('/set', async (req, res, next) => {
     })
     if (mode == 'session_id') value = encodeURIComponent(value);
     config[mode] = value
-    fs.writeFileSync('./src/config.json', JSON.stringify(config, null, 2))
+    configHandler.update(mode, value)
     res.send(value)
 })
 

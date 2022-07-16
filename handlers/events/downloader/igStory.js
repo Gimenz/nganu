@@ -1,5 +1,6 @@
-let config = require('../../../src/config.json')
 const { igApi } = require("insta-fetcher");
+const { configHandler } = require("../../../db");
+let config = configHandler.get()
 let ig = new igApi(config.session_id)
 let storyRegExp = new RegExp(/https:\/\/(www\.)?instagram\.com\/stories\/.+/g)
 

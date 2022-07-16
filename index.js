@@ -335,7 +335,7 @@ const start = async () => {
                     if (typeof plugin.groupMuteAllowed == 'undefined' && isGroupMsg && groupData.mute) return
                     await plugin.exec(m, client, { body, prefix, args, arg, cmd, url, flags, msg, plugins })
                     statistics('cmd')
-                } else if (plugin.groupEvent) {
+                } else if (plugin.groupEvent && isGroupMsg) {
                     if (typeof plugin.owner != 'undefined' && plugin.owner && !isOwner) return m.reply(cmdMSG.owner)
                     if (typeof plugin.admin != 'undefined' && plugin.admin && isGroupMsg && !isGroupAdmin) return m.reply(cmdMSG.notGroupAdmin)
                     if (typeof plugin.botAdmin != 'undefined' && plugin.botAdmin && groupData.antilink && isGroupMsg && !isBotGroupAdmin) return m.reply(cmdMSG.botNotAdmin)

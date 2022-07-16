@@ -1,4 +1,3 @@
-let syntaxerror = require('syntax-error');
 const { default: axios } = require('axios')
 
 module.exports = {
