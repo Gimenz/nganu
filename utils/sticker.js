@@ -8,7 +8,6 @@
  * If you want to be appreciated by others, then don't change anything in this script.
  * Please respect me for making this tool from the beginning.
  */
-require('dotenv').config()
 const { fromBuffer } = require('file-type');
 const sharp = require('sharp');
 const ffmpeg = require('fluent-ffmpeg');
@@ -23,6 +22,7 @@ const { removeBackgroundFromImageBase64, removeBackgroundFromImageUrl, removeBac
 const { EmojiAPI } = require("emoji-api");
 const EzGif = new (require('../lib/ezgif'));
 const emo = new EmojiAPI();
+let config = require('../src/config.json')
 //ffmpeg.setFfmpegPath("C:/ffmpeg/bin/ffmpeg.exe");
 
 let cropStyle = [
@@ -219,14 +219,14 @@ class Sticker {
      * remove the background of and image. do note! that this function is only for remove the bg
      * 
      * remove.bg apikey, you can get it from -> https://www.remove.bg/api
-     * also, you can use many apikey, place it on .env and separated by comma, eg: apikey1, apikey2
+     * also, you can use many apikey, place it on ./src/config.json and separated by comma, eg: apikey1, apikey2
      * @param {Buffer} input image buffer 
      * @returns 
      */
     static removeBG = async (input) => {
         try {
-            if (process.env.removeBG == '') throw 'remove.bg api-key did not set yet'
-            const arrayKu = process.env.removeBG.split(',')
+            if (config.removeBG == '') throw 'remove.bg api-key did not set yet'
+            const arrayKu = config.removeBG.split(',')
             const response = await removeBackgroundFromImageBase64({
                 base64img: input.toString('base64'),
                 apiKey: arrayKu[Math.floor(Math.random() * arrayKu.length)],

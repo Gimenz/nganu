@@ -12,6 +12,7 @@
 let express = require('express')
 const http = require('http')
 const app = express()
+const fs = require('fs');
 const httpServer = http.createServer(app)
 const { color, humanFileSize } = require('./utils/index')
 const si = require('systeminformation')
@@ -20,6 +21,7 @@ const qrcode = require('qrcode')
 const { resizeImage } = require('./lib/converter')
 const { isJidUser, isJidGroup } = require('@adiwajshing/baileys')
 global.qr = '';
+let config = require('./src/config.json');
 
 app.set('json spaces', 2);
 app.use(express.json());
@@ -76,6 +78,34 @@ app.get('/send', async (req, res, next) => {
     console.log(color(`[SEND] send message to ${id}`, 'green') + color(`${PORT}`, 'yellow'))
 })
 
+app.get('/user', async (req, res, next) => {
+    try {
+        const user = await client.user
+        res.status(200).jsonp(user)
+    } catch (error) {
+        res.status(503).jsonp({
+            'success': false,
+            'message': 'bot not authenticated'
+        })
+    }
+})
+
+app.get('/set', async (req, res, next) => {
+    const acceptable = ['session_id', 'removeBG', 'musixMatch']
+    console.log(req.query);
+    const mode = Object.keys(req.query)[0]
+    let value = Object.values(req.query)[0]
+
+    if (!acceptable.includes(mode)) return res.status(401).jsonp({
+        status: false,
+        'message': 'mode not acceptable! => only ' + acceptable.join(', ')
+    })
+    if (mode == 'session_id') value = encodeURIComponent(value);
+    config[mode] = value
+    fs.writeFileSync('./src/config.json', JSON.stringify(config, null, 2))
+    res.send(value)
+})
+
 const qrPrint = (qr) => {
     app.get('/qr', async (req, res) => {
         res.setHeader("content-type", "image/png")
@@ -84,7 +114,7 @@ const qrPrint = (qr) => {
 }
 
 // Run the server
-const PORT = process.env.PORT || 3000
+const PORT = config.PORT || 3000
 httpServer.listen(PORT, () => {
     console.log(color('[INFO] Web api Server on port: ', 'green') + color(`${PORT}`, 'yellow'))
 })

@@ -54,12 +54,14 @@ exports.groupManage = {
             }
         }
         db.push(`/groups/${groupId}`, json)
+        return json
     },
     update: (groupId, args) => {
         db.push(`/groups/${groupId}`, args)
     },
     get: (groupId) => {
-        return db.getData(`/groups/${groupId}`)
+        if (!db.exists(`/groups/${groupId}`)) return false
+        else return db.getData(`/groups/${groupId}`)
     }
 
 }

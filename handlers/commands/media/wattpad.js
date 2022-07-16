@@ -1,3 +1,4 @@
+const { delay } = require('@adiwajshing/baileys');
 const Wattpad = require('wattpad.js');
 const wattpad = new Wattpad()
 const tanda = '```'

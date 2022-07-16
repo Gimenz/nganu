@@ -1,4 +1,4 @@
-require('dotenv').config()
+let config = require('../../../src/config.json')
 const lyricsParse = require('lyrics-parse');
 const { default: axios } = require('axios')
 const { JSDOM } = require('jsdom')

@@ -1,5 +1,6 @@
 view
 db/*
+session/*
 !db/index.js
 !.gitkeep
 temp
@@ -14,7 +15,6 @@ tes.js
 emojimix.js
 emojis.json
 test-session.json
-lib/pinterest.js
 start.txt
 tesdb.js
 .env
